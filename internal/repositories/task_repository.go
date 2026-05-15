@@ -3,6 +3,15 @@ import (
 	"task/api/internal/entities"
 	"task/api/internal/data"
 )
+
+type TaskRepositoryInterface interface {
+GetAllTasks() []entities.Task
+GetTaskById(id int) *entities.Task
+CreateTask(task entities.Task) entities.Task
+UpdateTask(id int, updatedTask entities.Task) *entities.Task
+DeleteTask(id int) bool	
+}
+
 type TaskRepository struct {
 }
 func NewTaskRepository() *TaskRepository {

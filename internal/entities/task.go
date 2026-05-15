@@ -7,3 +7,12 @@ type Task struct {
 	Status      string `json:"status"`
 	Assignee    string `json:"assignee"`
 }
+
+func NewTask(title, description, status, assignee string) Task {
+	return Task{
+		Title:       title,
+		Description: description,
+		Status:      status,
+		Assignee:    assignee,
+	}
+}

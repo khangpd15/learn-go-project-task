@@ -26,3 +26,23 @@ var Tasks = []entities.Task{
 		Assignee:    "Duy",
 	},
 }
+var User = []entities.User{
+	{
+		ID:    1,
+		Username:  "Admin",
+		Email: "admin@gmail.com",
+		Role:  "ADMIN",
+	},
+	{
+		ID:    2,
+		Username:  "Khang",
+		Email: "khang@gmail.com",
+		Role:  "CUSTOMER",
+	},
+	{
+		ID:    3,
+		Username:  "Guest",
+		Email: "guest@gmail.com",
+		Role:  "GUEST",
+	},
+}
