@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"task/api/internal/repositories"
+	"task_api/internal/repositories"
 
 	"github.com/gin-gonic/gin"
 )

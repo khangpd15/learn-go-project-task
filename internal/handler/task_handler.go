@@ -4,9 +4,9 @@ import (
 	"errors"
 	"strconv"
 
-	"task/api/internal/entities"
-	"task/api/internal/response"
-	"task/api/internal/services"
+	"task_api/internal/entities"
+	"task_api/internal/response"
+	"task_api/internal/services"
 
 	"github.com/gin-gonic/gin"
 )
@@ -81,5 +81,5 @@ func (h *TaskHandler) DeleteTask(c *gin.Context) {
 		c.JSON(400, response.ErrorResponse("Failed to delete task", errors.New("id not found").Error()))
 		return
 	}
-	c.JSON(200, response.SuccessResponse("Task deleted successfully", nil))
+	c.JSON(204, response.SuccessResponse("Task deleted successfully", nil))
 }

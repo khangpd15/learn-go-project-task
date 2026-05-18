@@ -1,11 +1,10 @@
 package routes
 
 import (
-	"task/api/internal/entities"
-	"task/api/internal/handler"
-	"task/api/internal/middleware"
-	"task/api/internal/repositories"
-
+	"task_api/internal/entities"
+	"task_api/internal/handler"
+	"task_api/internal/middleware"
+	"task_api/internal/repositories"
 	"github.com/gin-gonic/gin"
 )
 
@@ -13,6 +12,7 @@ func SetupRoutes(
 	r *gin.Engine,
 	taskHandler *handler.TaskHandler,
 	userRepo repositories.UserRepositoryInterface,
+	userHandler *handler.UserHandler,
 ) {
 	// Route test server sống chưa, không cần login
 	r.GET("/health", func(c *gin.Context) {
@@ -75,6 +75,60 @@ func SetupRoutes(
 				entities.RoleAdmin,
 			),
 			taskHandler.DeleteTask,
+		)
+	}
+
+	v2 := r.Group("/api/v2")
+	v2.Use(middleware.AuthMiddleware(userRepo))
+	{
+		// GUEST, CUSTOMER, ADMIN đều được xem danh sách
+		v2.GET(
+			"/users",
+			middleware.RoleMiddleware(
+				entities.RoleGuest,
+				entities.RoleCustomer,
+				entities.RoleAdmin,
+			),
+			userHandler.GetAllUsers,
+		)
+
+		// CUSTOMER, ADMIN được xem chi tiết
+		v2.GET(
+			"/users/:id",
+			middleware.RoleMiddleware(
+				entities.RoleCustomer,
+				entities.RoleAdmin,
+			),
+			userHandler.GetUserByID,
+		)
+
+		// CUSTOMER, ADMIN được tạo user
+		v2.POST(
+			"/users",
+			middleware.RoleMiddleware(
+				entities.RoleCustomer,
+				entities.RoleAdmin,
+			),
+			userHandler.CreateUser,
+		)
+
+		// CUSTOMER, ADMIN được cập nhật user
+		v2.PUT(
+			"/users/:id",
+			middleware.RoleMiddleware(
+				entities.RoleCustomer,
+				entities.RoleAdmin,
+			),
+			userHandler.UpdateUser,
+		)
+
+		// Chỉ ADMIN được xóa user
+		v2.DELETE(
+			"/users/:id",
+			middleware.RoleMiddleware(
+				entities.RoleAdmin,
+			),
+			userHandler.DeleteUser,
 		)
 	}
 }

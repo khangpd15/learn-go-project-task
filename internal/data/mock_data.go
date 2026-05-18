@@ -1,7 +1,7 @@
 
 package data
 
-import "task/api/internal/entities"
+import "task_api/internal/entities"
 
 var Tasks = []entities.Task{
 	{

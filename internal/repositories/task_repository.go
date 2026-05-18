@@ -1,7 +1,7 @@
 package repositories
 import (
-	"task/api/internal/entities"
-	"task/api/internal/data"
+	"task_api/internal/entities"
+	"task_api/internal/data"
 )
 
 type TaskRepositoryInterface interface {

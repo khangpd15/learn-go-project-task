@@ -3,7 +3,7 @@ package middleware
 import (
 	"net/http"
 
-	"task/api/internal/entities"
+	"task_api/internal/entities"
 
 	"github.com/gin-gonic/gin"
 )

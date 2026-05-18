@@ -2,8 +2,8 @@ package services
 import
 (
 	"errors"
-	"task/api/internal/entities"
-	"task/api/internal/repositories"
+	"task_api/internal/entities"
+	"task_api/internal/repositories"
 )
 type TaskService struct {
 	taskRepo repositories.TaskRepositoryInterface
