@@ -5,11 +5,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"task/api/internal/handler"
-	"task/api/internal/middleware"
-	"task/api/internal/repositories"
-	"task/api/internal/routes"
-	"task/api/internal/services"
+	"task_api/internal/handler"
+	"task_api/internal/middleware"
+	"task_api/internal/repositories"
+	"task_api/internal/routes"
+	"task_api/internal/services"
 )
 
 func main() {
@@ -30,14 +30,17 @@ func main() {
 
 	taskHandler := handler.NewTaskHandler(taskService)
 
-	// User Repository
+	// User
 	userRepo := repositories.NewUserRepository()
+	userService := services.NewUserService(userRepo)
+	userHandler := handler.NewUserHandler(userService)
 
 	// Routes
 	routes.SetupRoutes(
 		r,
 		taskHandler,
 		userRepo,
+		userHandler,
 	)
 
 	// Run server
