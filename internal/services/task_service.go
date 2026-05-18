@@ -1,60 +1,65 @@
 package services
-import
-(
+
+import (
 	"errors"
 	"task_api/internal/entities"
 	"task_api/internal/repositories"
 )
+
 type TaskService struct {
 	taskRepo repositories.TaskRepositoryInterface
 }
+
 func NewTaskService(repo repositories.TaskRepositoryInterface) *TaskService {
 	return &TaskService{taskRepo: repo}
 }
 
 func IsValidStatus(status string) bool {
 	validStatus := map[string]bool{
-		"TODO": true,
+		"TODO":        true,
 		"IN_PROGRESS": true,
-		"DONE": true,
+		"DONE":        true,
 	}
 	return validStatus[status]
 }
 func IsValidId(id int) bool {
 
-		return id > 0
+	return id > 0
 }
 
- func (s *TaskService) GetAllTasks() []entities.Task{
+func (s *TaskService) GetAllTasks() []entities.Task {
 	return s.taskRepo.GetAllTasks()
- }
+}
 
- func (s *TaskService) GetTaskById(id int) *entities.Task{
+func (s *TaskService) GetTaskById(id int) *entities.Task {
 	return s.taskRepo.GetTaskById(id)
- }
- 
- func (s *TaskService) CreateTask(task entities.Task) (entities.Task, error){
+}
+
+func (s *TaskService) CreateTask(task entities.Task) (entities.Task, error) {
 	if !IsValidStatus(task.Status) {
 		return entities.Task{}, errors.New("invalid status")
 	}
 	return s.taskRepo.CreateTask(task), nil
 }
-func (s *TaskService) UpdateTask(id int, updateTask entities.Task) (*entities.Task, error){
+func (s *TaskService) UpdateTask(id int, updateTask entities.Task) (*entities.Task, error) {
 	if !IsValidId(id) {
 		return nil, errors.New("invalid id")
 	}
 	if !IsValidStatus(updateTask.Status) {
 		return nil, errors.New("invalid status")
 	}
-	if s.taskRepo.UpdateTask(id, updateTask) == nil {
+
+	task := s.taskRepo.UpdateTask(id, updateTask)
+	if task == nil {
 		return nil, errors.New("task not found")
 	}
-	return s.taskRepo.UpdateTask(id, updateTask), nil
+
+	return task, nil
 }
-func (s *TaskService) DeleteTask(id int) error{
+func (s *TaskService) DeleteTask(id int) error {
 	if !IsValidId(id) {
 		return errors.New("invalid id")
-	}	
+	}
 	if !s.taskRepo.DeleteTask(id) {
 		return errors.New("task not found")
 	}
