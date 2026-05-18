@@ -77,7 +77,7 @@ Week1_Golang/
 - Go 1.26.3 trở lên
 - Git (tuỳ chọn)
 
-### Bước 1: Clone hoặc tải dự án
+### Bước 1: Mở thư mục dự án
 ```bash
 cd Week1_Golang
 ```
@@ -87,16 +87,24 @@ cd Week1_Golang
 go mod download
 ```
 
-### Bước 3: Chạy ứng dụng
+### Bước 3: Chạy ứng dụng local
 ```bash
 go run cmd/main.go
 ```
 
-Ứng dụng sẽ chạy trên `http://localhost:8080`
+Ứng dụng sẽ chạy tại `http://localhost:8080`
 
-### Bước 4: Kiểm tra ứng dụng
+### Bước 4: Kiểm tra server
 ```bash
 curl http://localhost:8080/api/v1/tasks
+```
+
+Lưu ý: các route dưới `/api/v1/*` cần header `User-ID` để đi qua middleware xác thực. Route `/health` thì không cần.
+
+Ví dụ kiểm tra local bằng PowerShell:
+```powershell
+Invoke-RestMethod -Method Get http://localhost:8080/health
+Invoke-RestMethod -Method Get http://localhost:8080/api/v1/tasks -Headers @{"User-ID"="2"}
 ```
 
 ---
@@ -107,7 +115,7 @@ curl http://localhost:8080/api/v1/tasks
 **GET** `/api/v1/tasks`
 
 ```bash
-curl http://localhost:8080/api/v1/tasks
+curl http://localhost:8080/api/v1/tasks -H "User-ID: 2"
 ```
 
 **Response:**
@@ -132,7 +140,7 @@ curl http://localhost:8080/api/v1/tasks
 **GET** `/api/v1/tasks/:id`
 
 ```bash
-curl http://localhost:8080/api/v1/tasks/1
+curl http://localhost:8080/api/v1/tasks/1 -H "User-ID: 2"
 ```
 
 **Response:**
@@ -151,11 +159,12 @@ curl http://localhost:8080/api/v1/tasks/1
 
 ---
 
-### 3. Tạo công việc mới (Chưa kích hoạt)
+### 3. Tạo công việc mới
 **POST** `/api/v1/tasks`
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/tasks \
+  -H "User-ID: 2" \
   -H "Content-Type: application/json" \
   -d '{
     "title": "New Task",
@@ -169,11 +178,12 @@ curl -X POST http://localhost:8080/api/v1/tasks \
 
 ---
 
-### 4. Cập nhật công việc (Chưa kích hoạt)
+### 4. Cập nhật công việc
 **PUT** `/api/v1/tasks/:id`
 
 ```bash
 curl -X PUT http://localhost:8080/api/v1/tasks/1 \
+  -H "User-ID: 2" \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Updated Task",
@@ -185,11 +195,11 @@ curl -X PUT http://localhost:8080/api/v1/tasks/1 \
 
 ---
 
-### 5. Xóa công việc (Chưa kích hoạt)
+### 5. Xóa công việc
 **DELETE** `/api/v1/tasks/:id`
 
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/tasks/1
+curl -X DELETE http://localhost:8080/api/v1/tasks/1 -H "User-ID: 1"
 ```
 
 ---
@@ -278,8 +288,11 @@ DELETE /api/v1/tasks/:id   - Xóa task (Chưa kích hoạt)
 ## 📝 Ghi chú
 
 - Hiện tại API sử dụng **mock data** lưu trong bộ nhớ
-- Các endpoint POST, PUT, DELETE được comment ra trong `routes.go`
-- Để sử dụng MongoDB, cần bỏ comment và cấu hình kết nối
+- Các endpoint `POST`, `PUT`, `DELETE` đã bật trong `internal/routes/routes.go`
+- `GET /api/v1/tasks` chấp nhận vai trò `GUEST`, `CUSTOMER`, `ADMIN`
+- `GET /api/v1/tasks/:id`, `POST`, `PUT` yêu cầu `CUSTOMER` hoặc `ADMIN`
+- `DELETE /api/v1/tasks/:id` chỉ cho `ADMIN`
+- Nếu muốn đổi dữ liệu khởi tạo, sửa `internal/data/mock_data.go`
 
 ---
 
