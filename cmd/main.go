@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
-
+    "task_api/internal/database"
 	"task_api/internal/handler"
 	"task_api/internal/middleware"
 	"task_api/internal/repositories"
@@ -13,7 +13,8 @@ import (
 )
 
 func main() {
-
+    // Connect PostgreSQL
+	db := database.ConnectPostgres()
 	// Không dùng gin.Default()
 	// vì mình tự custom middleware
 	r := gin.New()
@@ -24,7 +25,7 @@ func main() {
 	r.Use(middleware.LoggerMiddleware())
 
 	// Task
-	taskRepo := repositories.NewTaskRepository()
+	taskRepo := repositories.NewTaskRepository(db)
 
 	taskService := services.NewTaskService(taskRepo)
 

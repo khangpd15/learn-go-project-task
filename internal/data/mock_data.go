@@ -9,21 +9,21 @@ var Tasks = []entities.Task{
 		Title:       "Learn Go",
 		Description: "Study Go basics",
 		Status:      "TODO",
-		Assignee:    "Khang",
+		AssigneeID:    nil,
 	},
 		{
 		ID:          2,
 		Title:       "Build a REST API",
 		Description: "Create a simple REST API in Go",
 		Status:      "IN_PROGRESS",
-		Assignee:    "Han",
+		AssigneeID:    nil,
 	},
 		{
 		ID:          3,
 		Title:       "Write Documentation",
 		Description: "Document the REST API",
 		Status:      "DONE",
-		Assignee:    "Duy",
+		AssigneeID:    nil,
 	},
 }
 var User = []entities.User{

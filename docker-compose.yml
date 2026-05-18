@@ -1,0 +1,21 @@
+version: '29.4.3'
+services:
+ db:
+  image: postgres:17.5-alpine3.22
+  container_name: postgres-db
+  restart: unless-stopped
+
+  environment:
+   POSTGRES_USER: khangdinh1510
+   POSTGRES_PASSWORD: 123
+   POSTGRES_DB: master-golang
+
+  ports:
+    - "5433:5432" 
+
+  volumes:
+    - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata: 
+

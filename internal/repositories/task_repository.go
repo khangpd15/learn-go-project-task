@@ -1,56 +1,83 @@
 package repositories
 import (
 	"task_api/internal/entities"
-	"task_api/internal/data"
+	"gorm.io/gorm"
 )
 
 type TaskRepositoryInterface interface {
-GetAllTasks() []entities.Task
-GetTaskById(id int) *entities.Task
-CreateTask(task entities.Task) entities.Task
-UpdateTask(id int, updatedTask entities.Task) *entities.Task
-DeleteTask(id int) bool	
+GetAllTasks() ([]entities.Task, error)
+GetTaskById(id int) (*entities.Task, error)
+CreateTask(task entities.Task) (entities.Task, error)
+UpdateTask(id int, updatedTask entities.Task) (*entities.Task, error)
+DeleteTask(id int)  error
 }
 
 type TaskRepository struct {
+	db *gorm.DB
 }
-func NewTaskRepository() *TaskRepository {
-	return &TaskRepository{}
+func NewTaskRepository(db *gorm.DB) *TaskRepository {
+	return &TaskRepository{db: db}
 }
-func (r *TaskRepository) GetAllTasks() []entities.Task {
-	return data.Tasks
-}
-func (r *TaskRepository) GetTaskById(id int) *entities.Task{
-	for _, task := range data.Tasks {
-		if task.ID == id {	
-			return &task
-		}
+func (r *TaskRepository) GetAllTasks() ([]entities.Task, error) {
+	var tasks []entities.Task
+	err := r.db.
+	Order("id asc").
+    Find(&tasks).
+    Error
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	return tasks, nil
+
 }
-func (r *TaskRepository) CreateTask(task entities.Task) entities.Task {
-	task.ID = len(data.Tasks) + 1
-	data.Tasks = append(data.Tasks, task)
-	return task
-}
-func (r *TaskRepository) UpdateTask(id int, updatedTask entities.Task) *entities.Task {
-	for i, task := range data.Tasks {	
-		if task.ID == id {
-			data.Tasks[i].Title = updatedTask.Title
-			data.Tasks[i].Description = updatedTask.Description
-			data.Tasks[i].Status = updatedTask.Status
-			data.Tasks[i].Assignee = updatedTask.Assignee
-			return &data.Tasks[i]
-		}		
+
+func (r *TaskRepository) GetTaskById(id int) (*entities.Task, error) {
+	var task entities.Task
+	err := r.db.First(&task, id).Error
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	return &task, nil
 }
-func (r *TaskRepository) DeleteTask(id int) bool {
-	for i, task := range data.Tasks {
-		if task.ID == id {					
-			data.Tasks = append(data.Tasks[:i], data.Tasks[i+1:]...)
-			return true
-		}
+
+func (r *TaskRepository) CreateTask(task entities.Task) (entities.Task, error) {
+	err := r.db.Create(&task).Error
+	if err != nil {
+		return entities.Task{}, err
 	}
-	return false
+	return task, nil
+}
+
+func (r *TaskRepository) UpdateTask(id int, task entities.Task) (*entities.Task, error) {
+	var existingTask entities.Task
+
+	err := r.db.
+		First(&existingTask, id).
+		Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	existingTask.Title = task.Title
+	existingTask.Description = task.Description
+	existingTask.Status = task.Status
+	existingTask.AssigneeID = task.AssigneeID
+
+	err = r.db.
+		Save(&existingTask).
+		Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &existingTask, nil
+}
+func (r *TaskRepository) DeleteTask(id int) error {
+	err := r.db.
+		Delete(&entities.Task{}, id).
+		Error
+
+	return err
 }

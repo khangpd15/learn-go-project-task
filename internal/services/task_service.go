@@ -27,41 +27,41 @@ func IsValidId(id int) bool {
 	return id > 0
 }
 
-func (s *TaskService) GetAllTasks() []entities.Task {
+func (s *TaskService) GetAllTasks() ([]entities.Task, error) {
 	return s.taskRepo.GetAllTasks()
 }
 
-func (s *TaskService) GetTaskById(id int) *entities.Task {
+func (s *TaskService) GetTaskById(id int) (*entities.Task, error) {
+	if !IsValidId(id) {
+		return nil, errors.New("invalid id")
+	}
+
 	return s.taskRepo.GetTaskById(id)
 }
-
 func (s *TaskService) CreateTask(task entities.Task) (entities.Task, error) {
 	if !IsValidStatus(task.Status) {
 		return entities.Task{}, errors.New("invalid status")
 	}
-	return s.taskRepo.CreateTask(task), nil
+
+	return s.taskRepo.CreateTask(task)
 }
+
 func (s *TaskService) UpdateTask(id int, updateTask entities.Task) (*entities.Task, error) {
 	if !IsValidId(id) {
 		return nil, errors.New("invalid id")
 	}
+
 	if !IsValidStatus(updateTask.Status) {
 		return nil, errors.New("invalid status")
 	}
 
-	task := s.taskRepo.UpdateTask(id, updateTask)
-	if task == nil {
-		return nil, errors.New("task not found")
-	}
-
-	return task, nil
+	return s.taskRepo.UpdateTask(id, updateTask)
 }
+
 func (s *TaskService) DeleteTask(id int) error {
 	if !IsValidId(id) {
 		return errors.New("invalid id")
 	}
-	if !s.taskRepo.DeleteTask(id) {
-		return errors.New("task not found")
-	}
-	return nil
+
+	return s.taskRepo.DeleteTask(id)
 }
