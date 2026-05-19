@@ -1,78 +1,145 @@
 package repositories
 
 import (
-	"task_api/internal/data"
 	"task_api/internal/entities"
+
+	"gorm.io/gorm"
 )
 
 type UserRepositoryInterface interface {
-	GetUserByID(id int) *entities.User
-	GetAllUsers() []entities.User
-	GetUserByUsername(username string) *entities.User
-	GetUserByEmail(email string) *entities.User
-	CreateUser(user entities.User) entities.User
-	UpdateUser(id int, updatedUser entities.User) *entities.User
-	DeleteUser(id int) bool
+	GetUserByID(id int) (*entities.User, error)
+	GetAllUsers() ([]entities.User, error)
+	GetUserByFullName(fullName string) (*entities.User, error)
+	GetUserByEmail(email string) (*entities.User, error)
+	CreateUser(user entities.User) (entities.User, error)
+	UpdateUser(id int, updatedUser entities.User) (*entities.User, error)
+	DeleteUser(id int) error
+	ExistsByEmail(email string) (bool, error)
+	ExistsByEmailAndIDNot(email string, id int) (bool, error)
 }
 
-type UserRepository struct{}
+type UserRepository struct {
+	db *gorm.DB
+}
 
-func NewUserRepository() UserRepositoryInterface {
-	return &UserRepository{}
+func NewUserRepository(db *gorm.DB) *UserRepository {
+	return &UserRepository{db: db}
 }
-func (r *UserRepository) GetAllUsers() []entities.User {
-	return data.User
-}
-func (r *UserRepository) GetUserByUsername(username string) *entities.User {
-	for i := range data.User {
-		if data.User[i].Username == username {
-			return &data.User[i]
-		}	
+
+func (r *UserRepository) GetAllUsers() ([]entities.User, error) {
+	var users []entities.User
+
+	err := r.db.Order("id asc").Find(&users).Error
+	if err != nil {
+		return nil, err
 	}
+
+	return users, nil
+}
+
+func (r *UserRepository) GetUserByFullName(fullName string) (*entities.User, error) {
+	var user entities.User
+
+	err := r.db.Where("full_name = ?", fullName).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (r *UserRepository) GetUserByEmail(email string) (*entities.User, error) {
+	var user entities.User
+
+	err := r.db.Where("email = ?", email).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (r *UserRepository) CreateUser(user entities.User) (entities.User, error) {
+	err := r.db.Create(&user).Error
+	if err != nil {
+		return entities.User{}, err
+	}
+
+	return user, nil
+}
+
+func (r *UserRepository) UpdateUser(id int, updatedUser entities.User) (*entities.User, error) {
+	var user entities.User
+
+	err := r.db.Where("id = ?", id).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+
+	if updatedUser.FullName != "" {
+		user.FullName = updatedUser.FullName
+	}
+
+	if updatedUser.Email != "" {
+		user.Email = updatedUser.Email
+	}
+
+	if updatedUser.PasswordHash != "" {
+		user.PasswordHash = updatedUser.PasswordHash
+	}
+
+	err = r.db.Save(&user).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (r *UserRepository) DeleteUser(id int) error {
+	var user entities.User
+
+	err := r.db.Where("id = ?", id).First(&user).Error
+	if err != nil {
+		return err
+	}
+
+	err = r.db.Delete(&user).Error
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
-func (r*UserRepository) GetUserByEmail(email string) *entities.User {
-	for i := range data.User {
-		if data.User[i].Email == email {
-			return &data.User[i]
-		}		
-	}
-	return nil
-}
 
-func (r *UserRepository) CreateUser(user entities.User) entities.User {
-	user.ID = len(data.User) + 1
-	data.User = append(data.User, user)
-	return user
-}	
-func (r *UserRepository) UpdateUser(id int, updatedUser entities.User) *entities.User {
-	for i := range data.User {	
-		if data.User[i].ID == id {
-			data.User[i].Role = updatedUser.Role
-			data.User[i].Username = updatedUser.Username
-			data.User[i].Password = updatedUser.Password
-			data.User[i].Email = updatedUser.Email
-			return &data.User[i]
-		}	
-	}
-	return nil
-}
-func (r *UserRepository) DeleteUser(id int) bool {
-	for i := range data.User {
-		if data.User[i].ID == id {	
-			data.User = append(data.User[:i], data.User[i+1:]...)
-			return true
-		}
-	}
-	return false
-}
+func (r *UserRepository) GetUserByID(id int) (*entities.User, error) {
+	var user entities.User
 
-func (r *UserRepository) GetUserByID(id int) *entities.User {
-	for i := range data.User {
-		if data.User[i].ID == id {
-			return &data.User[i]
-		}
+	err := r.db.Where("id = ?", id).First(&user).Error
+	if err != nil {
+		return nil, err
 	}
 
-	return nil
+	return &user, nil
+}
+func (r *UserRepository) ExistsByEmailAndIDNot(email string, id int) (bool, error) {
+	var count int64
+
+	err := r.db.Model(&entities.User{}).
+		Where("email = ? AND id <> ?", email, id).
+		Count(&count).Error
+
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+func (r *UserRepository) ExistsByEmail(email string) (bool, error) {
+	var count int64
+	err := r.db.Model(&entities.User{}).Where("email = ?", email).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }

@@ -32,7 +32,7 @@ func main() {
 	taskHandler := handler.NewTaskHandler(taskService)
 
 	// User
-	userRepo := repositories.NewUserRepository()
+	userRepo := repositories.NewUserRepository(db)
 	userService := services.NewUserService(userRepo)
 	userHandler := handler.NewUserHandler(userService)
 

@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"task_api/internal/entities"
+	// "task_api/internal/entities"
 	"task_api/internal/handler"
 	"task_api/internal/middleware"
 	"task_api/internal/repositories"
@@ -30,50 +30,50 @@ func SetupRoutes(
 		// GUEST, CUSTOMER, ADMIN đều được xem danh sách
 		v1.GET(
 			"/tasks",
-			middleware.RoleMiddleware(
-				entities.RoleGuest,
-				entities.RoleCustomer,
-				entities.RoleAdmin,
-			),
+			// middleware.RoleMiddleware(
+			// 	// entities.RoleGuest,
+			// 	// entities.RoleCustomer,
+			// 	// entities.RoleAdmin,
+			// ),
 			taskHandler.GetAllTasks,
 		)
 
 		// CUSTOMER, ADMIN được xem chi tiết
 		v1.GET(
 			"/tasks/:id",
-			middleware.RoleMiddleware(
-				entities.RoleCustomer,
-				entities.RoleAdmin,
-			),
+			// middleware.RoleMiddleware(
+			// 	// entities.RoleCustomer,
+			// 	// entities.RoleAdmin,
+			// ),
 			taskHandler.GetTaskById,
 		)
 
 		// CUSTOMER, ADMIN được tạo task
 		v1.POST(
 			"/tasks",
-			middleware.RoleMiddleware(
-				entities.RoleCustomer,
-				entities.RoleAdmin,
-			),
+			// middleware.RoleMiddleware(
+			// 	// entities.RoleCustomer,
+			// 	// entities.RoleAdmin,
+			// ),
 			taskHandler.CreateTask,
 		)
 
 		// CUSTOMER, ADMIN được cập nhật task
 		v1.PUT(
 			"/tasks/:id",
-			middleware.RoleMiddleware(
-				entities.RoleCustomer,
-				entities.RoleAdmin,
-			),
+			// middleware.RoleMiddleware(
+			// 	// entities.RoleCustomer,
+			// 	// entities.RoleAdmin,
+			// ),
 			taskHandler.UpdateTask,
 		)
 
 		// Chỉ ADMIN được xóa task
 		v1.DELETE(
 			"/tasks/:id",
-			middleware.RoleMiddleware(
-				entities.RoleAdmin,
-			),
+			// middleware.RoleMiddleware(
+			// 	// entities.RoleAdmin,
+			// ),
 			taskHandler.DeleteTask,
 		)
 	}
@@ -84,50 +84,66 @@ func SetupRoutes(
 		// GUEST, CUSTOMER, ADMIN đều được xem danh sách
 		v2.GET(
 			"/users",
-			middleware.RoleMiddleware(
-				entities.RoleGuest,
-				entities.RoleCustomer,
-				entities.RoleAdmin,
-			),
+			// middleware.RoleMiddleware(
+			// 	// entities.RoleGuest,
+			// 	// entities.RoleCustomer,
+			// 	// entities.RoleAdmin,
+			// ),
 			userHandler.GetAllUsers,
 		)
 
 		// CUSTOMER, ADMIN được xem chi tiết
 		v2.GET(
 			"/users/:id",
-			middleware.RoleMiddleware(
-				entities.RoleCustomer,
-				entities.RoleAdmin,
-			),
+			// middleware.RoleMiddleware(
+			// 	// entities.RoleCustomer,
+			// 	// entities.RoleAdmin,
+			// ),
 			userHandler.GetUserByID,
+		)
+		v2.GET(
+			"/users/email/:email",
+			// middleware.RoleMiddleware(
+			// 	// entities.RoleCustomer,
+			// 	// entities.RoleAdmin,
+			// ),
+			userHandler.GetUserByEmail,
+		)
+		v2.GET(
+			"/users/fullname/:fullname",
+			// middleware.RoleMiddleware(
+			// 	// entities.RoleCustomer,
+			// 	// entities.RoleAdmin,
+			// ),
+			userHandler.GetUserByFullName,
 		)
 
 		// CUSTOMER, ADMIN được tạo user
 		v2.POST(
 			"/users",
-			middleware.RoleMiddleware(
-				entities.RoleCustomer,
-				entities.RoleAdmin,
-			),
+			// middleware.RoleMiddleware(
+			// 	// entities.RoleCustomer,
+			// 	// entities.RoleAdmin,
+			// ),
 			userHandler.CreateUser,
 		)
 
 		// CUSTOMER, ADMIN được cập nhật user
 		v2.PUT(
 			"/users/:id",
-			middleware.RoleMiddleware(
-				entities.RoleCustomer,
-				entities.RoleAdmin,
-			),
+			// middleware.RoleMiddleware(
+			// 	// entities.RoleCustomer,
+			// 	// entities.RoleAdmin,
+			// ),
 			userHandler.UpdateUser,
 		)
 
 		// Chỉ ADMIN được xóa user
 		v2.DELETE(
 			"/users/:id",
-			middleware.RoleMiddleware(
-				entities.RoleAdmin,
-			),
+			// middleware.RoleMiddleware(
+			// 	// entities.RoleAdmin,
+			// ),
 			userHandler.DeleteUser,
 		)
 	}

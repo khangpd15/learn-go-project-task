@@ -4,6 +4,7 @@ import (
 	"errors"
 	"task_api/internal/entities"
 	"task_api/internal/repositories"
+	"task_api/internal/validation"
 )
 
 type TaskService struct {
@@ -14,32 +15,21 @@ func NewTaskService(repo repositories.TaskRepositoryInterface) *TaskService {
 	return &TaskService{taskRepo: repo}
 }
 
-func IsValidStatus(status string) bool {
-	validStatus := map[string]bool{
-		"TODO":        true,
-		"IN_PROGRESS": true,
-		"DONE":        true,
-	}
-	return validStatus[status]
-}
-func IsValidId(id int) bool {
 
-	return id > 0
-}
 
 func (s *TaskService) GetAllTasks() ([]entities.Task, error) {
 	return s.taskRepo.GetAllTasks()
 }
 
 func (s *TaskService) GetTaskById(id int) (*entities.Task, error) {
-	if !IsValidId(id) {
+	if !validation.IsValidId(id) {
 		return nil, errors.New("invalid id")
 	}
 
 	return s.taskRepo.GetTaskById(id)
 }
 func (s *TaskService) CreateTask(task entities.Task) (entities.Task, error) {
-	if !IsValidStatus(task.Status) {
+	if !validation.IsValidStatus(task.Status) {
 		return entities.Task{}, errors.New("invalid status")
 	}
 
@@ -47,11 +37,11 @@ func (s *TaskService) CreateTask(task entities.Task) (entities.Task, error) {
 }
 
 func (s *TaskService) UpdateTask(id int, updateTask entities.Task) (*entities.Task, error) {
-	if !IsValidId(id) {
+	if !validation.IsValidId(id) {
 		return nil, errors.New("invalid id")
 	}
 
-	if !IsValidStatus(updateTask.Status) {
+	if !validation.IsValidStatus(updateTask.Status) {
 		return nil, errors.New("invalid status")
 	}
 
@@ -59,7 +49,7 @@ func (s *TaskService) UpdateTask(id int, updateTask entities.Task) (*entities.Ta
 }
 
 func (s *TaskService) DeleteTask(id int) error {
-	if !IsValidId(id) {
+	if !validation.IsValidId(id) {
 		return errors.New("invalid id")
 	}
 

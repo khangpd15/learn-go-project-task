@@ -1,22 +1,21 @@
 package entities
+
+import "time"
+
 type User struct {
-	ID       int    `json:"id"`
-	Role	 string `json:"role"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Email    string `json:"email"`
+	ID           int       `json:"id"`
+	FullName     string    `json:"fullname"`
+	PasswordHash string    `json:"-"`
+	Email        string    `json:"email"`
+	CreatedAt    time.Time `json:"created_at"`
 }
-func NewUser(ID int, Role string, Username string, Password string, Email string) User {
+
+func NewUser(id int, fullName string, passwordHash string, email string) User {
 	return User{
-		ID:       ID,
-		Role:     Role,
-		Username: Username,
-		Password: Password,
-		Email:    Email,
+		ID:           id,
+		FullName:     fullName,
+		PasswordHash: passwordHash,
+		Email:        email,
+		CreatedAt:    time.Now(),
 	}
 }
-const (
-	RoleAdmin = "ADMIN"
-	RoleCustomer = "CUSTOMER"
-	RoleGuest = "GUEST"
-)

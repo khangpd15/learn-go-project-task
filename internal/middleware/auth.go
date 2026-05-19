@@ -1,12 +1,14 @@
 package middleware
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
 	"task_api/internal/repositories"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func AuthMiddleware(userRepo repositories.UserRepositoryInterface) gin.HandlerFunc {
@@ -30,11 +32,17 @@ func AuthMiddleware(userRepo repositories.UserRepositoryInterface) gin.HandlerFu
 			return
 		}
 
-		user := userRepo.GetUserByID(userID)
-		if user == nil {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"message": "user not found",
-			})
+		user, err := userRepo.GetUserByID(userID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"message": "user not found",
+				})
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"message": "failed to authorize user",
+				})
+			}
 			c.Abort()
 			return
 		}

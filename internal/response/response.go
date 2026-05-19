@@ -1,7 +1,7 @@
 package response
 
 type ApiResponse struct {
-	Success bool        `json:"success"`
+	Status  bool        `json:"status"`
 	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
 	Error   interface{} `json:"error,omitempty"`
@@ -9,7 +9,7 @@ type ApiResponse struct {
 
 func SuccessResponse(message string, data interface{}) ApiResponse {
 	return ApiResponse{
-		Success: true,
+		Status:  true,
 		Message: message,
 		Data:    data,
 	}
@@ -17,7 +17,7 @@ func SuccessResponse(message string, data interface{}) ApiResponse {
 
 func ErrorResponse(message string, err any) ApiResponse {
 	return ApiResponse{
-		Success: false,
+		Status:  false,
 		Message: message,
 		Error:   err,
 	}
