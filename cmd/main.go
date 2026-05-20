@@ -26,7 +26,7 @@ func main() {
 
 	// Task
 	taskRepo := repositories.NewTaskRepository(db)
-
+ 
 	taskService := services.NewTaskService(taskRepo)
 
 	taskHandler := handler.NewTaskHandler(taskService)
@@ -35,14 +35,22 @@ func main() {
 	userRepo := repositories.NewUserRepository(db)
 	userService := services.NewUserService(userRepo)
 	userHandler := handler.NewUserHandler(userService)
-
+    // Auth
+	authService := services.NewAuthService(userRepo)
+	authHandler := handler.NewAuthHandler(authService)
+	// Project
+	projectRepo := repositories.NewProjectRepository(db)
+	projectService := services.NewProjectService(projectRepo)
+	projectHandler := handler.NewProjectHandler(projectService)
 	// Routes
 	routes.SetupRoutes(
-		r,
-		taskHandler,
-		userRepo,
-		userHandler,
-	)
+	r,
+	taskHandler,
+	userHandler,
+	authHandler,
+	userRepo,
+	projectHandler,
+)
 
 	// Run server
 	if err := r.Run(":8080"); err != nil {
