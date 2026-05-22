@@ -1,0 +1,6 @@
+BEGIN;
+
+TRUNCATE TABLE tasks, projects, users
+RESTART IDENTITY CASCADE;
+
+COMMIT;

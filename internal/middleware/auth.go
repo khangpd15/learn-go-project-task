@@ -1,53 +1,68 @@
 package middleware
 
 import (
-	"errors"
 	"net/http"
-	"strconv"
+	"strings"
 
 	"task_api/internal/repositories"
+	"task_api/internal/utils"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 func AuthMiddleware(userRepo repositories.UserRepositoryInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userIDHeader := c.GetHeader("User-ID")
+		authHeader := c.GetHeader("Authorization")
 
-		if userIDHeader == "" {
+		if authHeader == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{
-				"message": "missing User-ID",
+				"message": "missing Authorization header",
 			})
 			c.Abort()
 			return
 		}
 
-		userID, err := strconv.Atoi(userIDHeader)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"message": "User-ID must be a number",
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+
+		if tokenString == authHeader {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"message": "invalid Authorization format",
 			})
 			c.Abort()
 			return
 		}
+
+		claims, err := utils.ValidateAccessToken(tokenString)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"message": "invalid or expired token",
+			})
+			c.Abort()
+			return
+		}
+
+		userIDFloat, ok := claims["user_id"].(float64)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"message": "invalid token payload",
+			})
+			c.Abort()
+			return
+		}
+
+		userID := int(userIDFloat)
 
 		user, err := userRepo.GetUserByID(userID)
 		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				c.JSON(http.StatusUnauthorized, gin.H{
-					"message": "user not found",
-				})
-			} else {
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"message": "failed to authorize user",
-				})
-			}
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"message": "user not found",
+			})
 			c.Abort()
 			return
 		}
 
 		c.Set("current_user", user)
+		c.Set("user_id", user.ID)
 
 		c.Next()
 	}

@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"task_api/internal/entities"
+	"errors"
 
 	"gorm.io/gorm"
 )
@@ -53,6 +54,10 @@ func (r *UserRepository) GetUserByEmail(email string) (*entities.User, error) {
 
 	err := r.db.Where("email = ?", email).First(&user).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("user not found")
+		}
+
 		return nil, err
 	}
 

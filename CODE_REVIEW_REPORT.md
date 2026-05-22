@@ -1,0 +1,37 @@
+# Code Review Report
+
+## Phạm vi
+Đã rà soát cấu trúc project Go, flow `Handler -> Service -> Repository -> DTO -> Mapper`, cùng các điểm rủi ro về DB/GORM, JWT, permission, validation và response format.
+
+Kết quả kiểm thử nhanh: `go test ./...` chạy qua được, nên code hiện tại không bị lỗi biên dịch rõ ràng. Tuy nhiên, nhiều vấn đề dưới đây là lỗi logic/bảo mật nên test hiện có chưa bắt được.
+
+## Điểm tốt
+- Cấu trúc thư mục khá rõ ràng: `cmd`, `internal/{handler,services,repositories,mapper,dto,validation,middleware}` giúp tách lớp tốt.
+- Có `response` wrapper thống nhất kiểu payload cơ bản, thay vì trả JSON tự do ở mọi nơi.
+- Có validation riêng cho user/task/project thay vì nhét toàn bộ rule vào handler.
+- `ProjectService` đã có kiểm tra ownership cho update/delete, cho thấy có ý thức về authorization ở tầng nghiệp vụ.
+- Có seed/migration SQL, giúp tái tạo dữ liệu dev và kiểm soát schema tốt hơn.
+
+## Lỗi Và Rủi Ro
+
+| Mức độ | Khu vực | Vấn đề | Tác động | Cách tối ưu |
+|---|---|---|---|---|
+| Critical | Authorization | Toàn bộ route đã protected bằng JWT, nhưng role middleware không được gắn vào router, và `TaskService` nhận `currentUserID` nhưng không dùng để kiểm tra ownership. `Task` create/update/delete đều có thể tác động lên bất kỳ task nào nếu biết ID. Xem [internal/routes/routes.go](internal/routes/routes.go#L32-L36), [internal/services/task_service.go](internal/services/task_service.go#L31-L48), và file role middleware [internal/middleware/role.go](internal/middleware/role.go). | Bất kỳ user đã đăng nhập nào cũng có thể sửa/xóa tài nguyên không thuộc quyền của mình. Đây là lỗ hổng phân quyền thực sự. | Gắn role middleware cho các route cần phân quyền; trong `TaskService`/`ProjectService`, kiểm tra owner/assignee trước khi mutate; bỏ qua `currentUserID` là không chấp nhận được cho API có permission. |
+| High | Task API contract | `CreateTask` và `UpdateTask` bind thẳng vào `entities.Task` thay vì dùng DTO trong `internal/dto/request/task`, trong khi `IsValidStatus` chỉ chấp nhận `TODO`, `IN_PROGRESS`, `DONE`. `task_mapper.go` lại default status là `todo` lowercase và hiện không được handler dùng. Xem [internal/handler/task_handler.go](internal/handler/task_handler.go#L48-L62), [internal/services/task_service.go](internal/services/task_service.go#L31-L48), [internal/validation/task_validation.go](internal/validation/task_validation.go#L3-L7), [internal/mapper/task_mapper.go](internal/mapper/task_mapper.go#L24-L28). | POST task dễ fail nếu client không gửi `status`; update cũng dễ lệch contract. Luồng hiện tại còn làm API khó đoán vì mapper và service không đồng bộ. | Dùng request DTO đúng mục đích; nếu muốn default status thì set ở service bằng một giá trị chuẩn thống nhất với validator; tránh lowercase/uppercase mismatch. |
+| High | Partial update | `TaskRepository.UpdateTask` ghi đè trực tiếp `Title`, `Description`, `Status`, `AssigneeID` từ payload. Vì handler bind vào entity đầy đủ, field không gửi lên sẽ thành zero value và có thể xóa dữ liệu khi update partial. Xem [internal/repositories/task_repository.go](internal/repositories/task_repository.go#L51-L68). | Update một field có thể vô tình làm rỗng các field khác, gây mất dữ liệu. | Dùng DTO pointer/nullable cho update, hoặc chỉ update field nào client thực sự gửi; ưu tiên `PATCH` semantics nếu muốn partial update. |
+| High | Security / logging | `AuthService.Login` in ra email, password hash và password người dùng; `UserHandler.CreateUser` cũng log password và kết quả validate ra console. Xem [internal/services/auth_service.go](internal/services/auth_service.go#L31-L37), [internal/handler/user_handler.go](internal/handler/user_handler.go#L86-L87). | Lộ dữ liệu nhạy cảm vào logs, đặc biệt nguy hiểm trong môi trường shared/staging/production. | Xóa toàn bộ log nhạy cảm; nếu cần trace, chỉ log request id hoặc email đã mask; dùng structured logger với redaction. |
+| High | JWT config | Secret JWT được lấy trực tiếp từ env ở package init, nhưng không có kiểm tra secret rỗng. Nếu `JWT_SECRET` chưa được set, token vẫn có thể được ký/xác minh với key rỗng. Xem [internal/utils/jwt.go](internal/utils/jwt.go#L12-L33). | Token mất ý nghĩa bảo mật nếu cấu hình sai; đây là lỗi cấu hình có thể biến thành lỗ hổng xác thực. | Validate `JWT_SECRET` khi khởi động, fail fast nếu rỗng; nên nạp config qua layer cấu hình thay vì `os.Getenv` rải trong util. |
+| Medium | DB config | DSN PostgreSQL đang hardcode cả host, port, user, password và dbname trong code. Xem [internal/database/postgres.go](internal/database/postgres.go#L10-L11). | Khó triển khai, khó rotate secret, dễ lộ credential nếu source bị chia sẻ. | Đưa toàn bộ DSN sang env/config file, dùng biến môi trường và cấu hình theo môi trường chạy. |
+| Medium | Register flow | `AuthService.Register` gọi `GetUserByEmail`; nếu trả về lỗi khác `record not found`, code vẫn đi tiếp như thể email chưa tồn tại. Xem [internal/services/auth_service.go](internal/services/auth_service.go#L52-L62). | Lỗi DB tạm thời có thể bị hiểu nhầm thành email hợp lệ, làm che giấu lỗi hạ tầng và tăng nguy cơ hành vi không nhất quán. | Phân biệt rõ `gorm.ErrRecordNotFound` với lỗi hệ thống; nếu repo lỗi thì trả lỗi 5xx, không tiếp tục flow đăng ký. |
+| Medium | Validation | Policy mật khẩu không đồng bộ: `IsValidPassword` yêu cầu tối thiểu 6 ký tự, nhưng thông báo lỗi lại nói 8 ký tự. Xem [internal/validation/user_validation.go](internal/validation/user_validation.go#L6-L15) và [internal/services/auth_service.go](internal/services/auth_service.go#L60-L60). | Gây hiểu nhầm cho client và khó test đúng kỳ vọng bảo mật. | Chuẩn hóa policy ở một nơi duy nhất; đồng bộ rule, message và tài liệu API. |
+| Medium | Response format | Có `ApiResponse` wrapper nhưng nhiều handler vẫn trả `gin.H` khác shape hoặc dùng HTTP status literal rải rác; một số lỗi trả 400/401/404/500 chưa nhất quán. Xem [internal/response/response.go](internal/response/response.go#L1-L20), [internal/handler/task_handler.go](internal/handler/task_handler.go#L21-L105), [internal/handler/auth_handler.go](internal/handler/auth_handler.go). | Client phải xử lý nhiều schema lỗi khác nhau; khó chuẩn hóa SDK/FE integration. | Chuẩn hóa toàn bộ handler qua một helper chung cho success/error response và bảng map lỗi -> HTTP status. |
+| Low | Test coverage | `internal/services/task_service_test.go` gần như bị comment toàn bộ, nên flow nghiệp vụ task không có unit test thực thi. | Lỗi logic như permission/status mismatch khó được phát hiện sớm. | Khôi phục test service thật, ưu tiên table-driven test cho create/update/delete và các case authorization/validation. |
+
+## Ưu Tiên Sửa
+1. Sửa authorization trước: task ownership, role middleware, và chặn user routes không có quyền.
+2. Chuẩn hóa task request/update flow: dùng DTO đúng, thống nhất status, và tránh overwrite zero-value.
+3. Xóa log nhạy cảm, kiểm tra JWT secret, và chuyển DB config sang env.
+4. Bổ sung test service cho các rule nghiệp vụ quan trọng.
+
+## Kết Luận
+Project có nền tảng kiến trúc khá sạch và đã tách layer đúng hướng, nhưng hiện tại rủi ro lớn nhất không nằm ở khả năng chạy mà nằm ở authorization, contract request/response và xử lý update. Nếu xử lý 4 nhóm ưu tiên ở trên, codebase sẽ an toàn và ổn định hơn đáng kể.

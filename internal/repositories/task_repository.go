@@ -10,6 +10,8 @@ GetTaskById(id int) (*entities.Task, error)
 CreateTask(task entities.Task) (entities.Task, error)
 UpdateTask(id int, updatedTask entities.Task) (*entities.Task, error)
 DeleteTask(id int)  error
+GetTaskListByProjectID(projectID int) ([]entities.Task, error)
+
 }
 
 type TaskRepository struct {
@@ -29,6 +31,17 @@ func (r *TaskRepository) GetAllTasks() ([]entities.Task, error) {
 	}
 	return tasks, nil
 
+}
+func (r *TaskRepository) GetTaskListByProjectID(projectID int) ([]entities.Task, error) {
+	var tasks []entities.Task
+	err := r.db.Where("project_id = ?", projectID).
+	Order("id asc").
+	Find(&tasks).
+	Error	
+	if err != nil {
+		return nil, err
+	}
+	return tasks, nil
 }
 
 func (r *TaskRepository) GetTaskById(id int) (*entities.Task, error) {

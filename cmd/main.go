@@ -24,13 +24,6 @@ func main() {
 	r.Use(middleware.RequestIDMiddleware())
 	r.Use(middleware.LoggerMiddleware())
 
-	// Task
-	taskRepo := repositories.NewTaskRepository(db)
- 
-	taskService := services.NewTaskService(taskRepo)
-
-	taskHandler := handler.NewTaskHandler(taskService)
-
 	// User
 	userRepo := repositories.NewUserRepository(db)
 	userService := services.NewUserService(userRepo)
@@ -42,6 +35,11 @@ func main() {
 	projectRepo := repositories.NewProjectRepository(db)
 	projectService := services.NewProjectService(projectRepo)
 	projectHandler := handler.NewProjectHandler(projectService)
+	// Task
+	taskRepo := repositories.NewTaskRepository(db)
+	taskService := services.NewTaskService(taskRepo, projectRepo)
+	taskHandler := handler.NewTaskHandler(taskService)
+
 	// Routes
 	routes.SetupRoutes(
 	r,
