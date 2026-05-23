@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"strings"
 	"task_api/internal/entities"
 	"task_api/internal/repositories"
 	"task_api/internal/validation"
@@ -88,9 +89,11 @@ func (s *TaskService) UpdateTask(id int,currentUserID int, updateTask entities.T
 	if project.OwnerID != currentUserID {
 		return nil, errors.New("unauthorized to update this task")
 	}
+	
 	if !validation.IsValidId(id) {
 		return nil, errors.New("invalid id")
 	}
+	updateTask.Status = strings.ToUpper(updateTask.Status)
 
 	if !validation.IsValidStatus(updateTask.Status) {
 		return nil, errors.New("invalid status")

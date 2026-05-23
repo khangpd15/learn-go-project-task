@@ -1,0 +1,222 @@
+{
+  "info": {
+    "_postman_id": "a41624cb-7931-4f95-8e40-4e195efeb818",
+    "name": "New Collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "51027149",
+    "_collection_link": "https://go.postman.co/collection/51027149-a41624cb-7931-4f95-8e40-4e195efeb818?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Task",
+      "item": [
+        {
+          "name": "LIST Task",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "GET Task By ID",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "CREATE Task",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "\r\n{\r\n \"userId\": \"30e2871f-71a1-46d6-b615-f57e3e4969f9\",\r\n  \"title\": \"Study for Biology Midterm\",\r\n  \"description\": \"Chapters 3-5: Cell Biology and Genetics\",\r\n  \"priority\": \"HIGH\",\r\n  \"due_at\": \"2026-05-10T23:59:59Z\",\r\n  \"checklist\": [\r\n    {\r\n      \"content\": \"Read chapter 3 - Cell Structure\",\r\n      \"position\": 1\r\n    },\r\n    {\r\n      \"content\": \"Create flashcards for key terms\",\r\n      \"position\": 2\r\n    },\r\n    {\r\n      \"content\": \"Take practice quiz\",\r\n      \"position\": 3\r\n    },\r\n    {\r\n      \"content\": \"Review notes 2 days before exam\",\r\n      \"position\": 4\r\n    }\r\n  ]\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/tasks",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "tasks"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "EDIT Task",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"title\": \"Learn Go\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/v1/user",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "v1",
+                "user"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Task",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User",
+      "item": [
+        {
+          "name": "List User",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Get User By ID",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Get User By Fullname",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Edit User",
+          "request": {
+            "method": "PUT",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": []
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Project",
+      "item": [
+        {
+          "name": "List Project",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Edit Project",
+          "request": {
+            "method": "PUT",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Project",
+          "request": {
+            "method": "DELETE",
+            "header": []
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "User-ID",
+                "value": "1",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{user_url}}/api/v2/users/email/khang@gmail.com",
+              "host": [
+                "{{user_url}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "users",
+                "email",
+                "khang@gmail.com"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": []
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

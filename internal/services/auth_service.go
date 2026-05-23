@@ -2,7 +2,6 @@ package services
 
 import (
 	"errors"
-	"fmt"
 	"task_api/internal/dto/request/auth"
 	"task_api/internal/entities"
 	"task_api/internal/repositories"
@@ -32,9 +31,6 @@ func (as *AuthService) Login(req auth.LoginRequest) (string, error) {
 	if err != nil {
 		return "", errors.New("invalid email or password")
 	}
-fmt.Println("email:", user.Email)
-fmt.Println("hash:", user.PasswordHash)
-fmt.Println("password req:", req.Password)
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
 	if err != nil {
@@ -49,22 +45,28 @@ fmt.Println("password req:", req.Password)
 	return token, nil
 }
 func (as *AuthService) Register(req auth.RegisterRequest) error {
-	_, err := as.userRepo.GetUserByEmail(req.Email)
-	if err == nil {
-		return errors.New("email already exists")
+
+	if req.FullName == "" || req.Email == "" || req.Password == "" {
+		return errors.New("all fields are required")
 	}
+	
 	if !validation.IsValidEmail(req.Email) {
 		return errors.New("invalid email format")
 	}
 	if !validation.IsValidPassword(req.Password) {
 		return errors.New("password must be at least 8 characters and contain at least one letter and one number and one special character")
 	}
+	exists, err := as.userRepo.ExistsByEmail(req.Email)
+	if err != nil {
+		return errors.New("failed to check email")
+	}
+
+	if exists {
+		return errors.New("email already exists")
+	}
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return errors.New("failed to hash password")
-	}
-	if req.FullName == "" || req.Email == "" || req.Password == "" {
-		return errors.New("all fields are required")
 	}
 	newUser := entities.NewUser(
 		0,
@@ -72,9 +74,9 @@ func (as *AuthService) Register(req auth.RegisterRequest) error {
 		string(hashedPassword),
 		req.Email,
 	)
-    _, err = as.userRepo.CreateUser(newUser)
-    if err != nil {
-        return errors.New("failed to create user")
-    }
-    return nil
+	_, err = as.userRepo.CreateUser(newUser)
+	if err != nil {
+		return errors.New("failed to create user")
+	}
+	return nil
 }

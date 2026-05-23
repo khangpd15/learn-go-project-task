@@ -1,198 +1,339 @@
 package services
 
-// import (
-// 	"testing"
+import (
+	"errors"
+	"testing"
 
-// 	"task_api/internal/entities"
+	"task_api/internal/entities"
 
-// 	"github.com/stretchr/testify/assert"
-// )
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
 
-// type MockTaskRepository struct {
-// 	tasks []entities.Task
-// }
+type mockTaskRepository struct {
+	getAllTasksFn        func() ([]entities.Task, error)
+	getTaskByIDFn        func(id int) (*entities.Task, error)
+	createTaskFn         func(task entities.Task) (entities.Task, error)
+	updateTaskFn         func(id int, task entities.Task) (*entities.Task, error)
+	deleteTaskFn         func(id int) error
+	getTaskListByProject func(projectID int) ([]entities.Task, error)
+}
 
-// func (m *MockTaskRepository) GetAllTasks() []entities.Task {
-// 	return m.tasks
-// }
+func (m *mockTaskRepository) GetAllTasks() ([]entities.Task, error) {
+	if m.getAllTasksFn != nil {
+		return m.getAllTasksFn()
+	}
+	return nil, nil
+}
 
-// func (m *MockTaskRepository) GetTaskById(id int) *entities.Task {
-// 	for _, task := range m.tasks {
-// 		if task.ID == id {
-// 			return &task
-// 		}
-// 	}
-// 	return nil
-// }
+func (m *mockTaskRepository) GetTaskById(id int) (*entities.Task, error) {
+	if m.getTaskByIDFn != nil {
+		return m.getTaskByIDFn(id)
+	}
+	return nil, errors.New("not implemented")
+}
 
-// func (m *MockTaskRepository) CreateTask(task entities.Task) entities.Task {
-// 	task.ID = len(m.tasks) + 1
-// 	m.tasks = append(m.tasks, task)
-// 	return task
-// }
+func (m *mockTaskRepository) CreateTask(task entities.Task) (entities.Task, error) {
+	if m.createTaskFn != nil {
+		return m.createTaskFn(task)
+	}
+	return entities.Task{}, errors.New("not implemented")
+}
 
-// func (m *MockTaskRepository) UpdateTask(id int, updateTask entities.Task) *entities.Task {
-// 	for i := range m.tasks {
-// 		if m.tasks[i].ID == id {
-// 			updateTask.ID = id
-// 			m.tasks[i] = updateTask
-// 			return &m.tasks[i]
-// 		}
-// 	}
-// 	return nil
-// }
+func (m *mockTaskRepository) UpdateTask(id int, task entities.Task) (*entities.Task, error) {
+	if m.updateTaskFn != nil {
+		return m.updateTaskFn(id, task)
+	}
+	return nil, errors.New("not implemented")
+}
 
-// func (m *MockTaskRepository) DeleteTask(id int) bool {
-// 	for i, task := range m.tasks {
-// 		if task.ID == id {
-// 			m.tasks = append(m.tasks[:i], m.tasks[i+1:]...)
-// 			return true
-// 		}
-// 	}
-// 	return false
-// }
+func (m *mockTaskRepository) DeleteTask(id int) error {
+	if m.deleteTaskFn != nil {
+		return m.deleteTaskFn(id)
+	}
+	return nil
+}
 
-// func TestCreateTaskSuccess(t *testing.T) {
-// 	mockRepo := &MockTaskRepository{}
-// 	taskService := NewTaskService(mockRepo)
+func (m *mockTaskRepository) GetTaskListByProjectID(projectID int) ([]entities.Task, error) {
+	if m.getTaskListByProject != nil {
+		return m.getTaskListByProject(projectID)
+	}
+	return nil, nil
+}
 
-// 	task := entities.Task{
-// 		Title:  "Learn Go",
-// 		Status: "TODO",
-// 	}
+type mockProjectRepository struct {
+	listByOwnerFn func(ownerID int) ([]entities.Project, error)
+	listAllFn     func() ([]entities.Project, error)
+	getByIDFn     func(projectID int) (entities.Project, error)
+	updateFn      func(projectID int, name string, description string) error
+	deleteFn      func(project entities.Project) error
+}
 
-// 	result, err := taskService.CreateTask(task)
+func (m *mockProjectRepository) ListProjectByOwner(ownerID int) ([]entities.Project, error) {
+	if m.listByOwnerFn != nil {
+		return m.listByOwnerFn(ownerID)
+	}
+	return nil, nil
+}
 
-// 	assert.NoError(t, err)
-// 	assert.Equal(t, "Learn Go", result.Title)
-// 	assert.Equal(t, "TODO", result.Status)
-// 	assert.Equal(t, 1, result.ID)
-// }
+func (m *mockProjectRepository) ListAllProjects() ([]entities.Project, error) {
+	if m.listAllFn != nil {
+		return m.listAllFn()
+	}
+	return nil, nil
+}
 
-// func TestCreateTaskInvalidStatus(t *testing.T) {
-// 	mockRepo := &MockTaskRepository{}
-// 	taskService := NewTaskService(mockRepo)
+func (m *mockProjectRepository) GetProjectByID(projectID int) (entities.Project, error) {
+	if m.getByIDFn != nil {
+		return m.getByIDFn(projectID)
+	}
+	return entities.Project{}, errors.New("not implemented")
+}
 
-// 	task := entities.Task{
-// 		Title:  "Learn Go",
-// 		Status: "INVALID",
-// 	}
+func (m *mockProjectRepository) UpdateProject(projectID int, name string, description string) error {
+	if m.updateFn != nil {
+		return m.updateFn(projectID, name, description)
+	}
+	return nil
+}
 
-// 	result, err := taskService.CreateTask(task)
+func (m *mockProjectRepository) DeleteProject(project entities.Project) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(project)
+	}
+	return nil
+}
 
-// 	assert.Error(t, err)
-// 	assert.Equal(t, "invalid status", err.Error())
-// 	assert.Equal(t, entities.Task{}, result)
-// }
+func TestTaskService_GetAllTasks_Success(t *testing.T) {
+	taskRepo := &mockTaskRepository{
+		getTaskListByProject: func(projectID int) ([]entities.Task, error) {
+			switch projectID {
+			case 1:
+				return []entities.Task{{ID: 11, ProjectID: 1, Title: "Task 1", Status: "TODO"}}, nil
+			case 2:
+				return []entities.Task{{ID: 22, ProjectID: 2, Title: "Task 2", Status: "DONE"}}, nil
+			default:
+				return nil, nil
+			}
+		},
+	}
+	projectRepo := &mockProjectRepository{
+		listByOwnerFn: func(ownerID int) ([]entities.Project, error) {
+			require.Equal(t, 99, ownerID)
+			return []entities.Project{{ID: 1, OwnerID: 99}, {ID: 2, OwnerID: 99}}, nil
+		},
+	}
 
-// func TestUpdateTaskSuccess(t *testing.T) {
-// 	mockRepo := &MockTaskRepository{
-// 		tasks: []entities.Task{
-// 			{
-// 				ID:     1,
-// 				Title:  "Old Task",
-// 				Status: "TODO",
-// 			},
-// 		},
-// 	}
-// 	taskService := NewTaskService(mockRepo)
+	service := NewTaskService(taskRepo, projectRepo)
+	tasks, err := service.GetAllTasks(99)
 
-// 	updateTask := entities.Task{
-// 		Title:  "Updated Task",
-// 		Status: "DONE",
-// 	}
+	require.NoError(t, err)
+	require.Len(t, tasks, 2)
+	assert.Equal(t, 11, tasks[0].ID)
+	assert.Equal(t, 22, tasks[1].ID)
+}
 
-// 	result, err := taskService.UpdateTask(1, updateTask)
+func TestTaskService_GetTaskById_Success(t *testing.T) {
+	taskRepo := &mockTaskRepository{
+		getTaskByIDFn: func(id int) (*entities.Task, error) {
+			return &entities.Task{ID: id, ProjectID: 7, Title: "Task", Status: "TODO"}, nil
+		},
+	}
+	projectRepo := &mockProjectRepository{
+		getByIDFn: func(projectID int) (entities.Project, error) {
+			return entities.Project{ID: projectID, OwnerID: 12}, nil
+		},
+	}
 
-// 	assert.NoError(t, err)
-// 	assert.NotNil(t, result)
-// 	assert.Equal(t, 1, result.ID)
-// 	assert.Equal(t, "Updated Task", result.Title)
-// 	assert.Equal(t, "DONE", result.Status)
-// }
+	service := NewTaskService(taskRepo, projectRepo)
+	task, err := service.GetTaskById(12, 5)
 
-// func TestUpdateTaskInvalidID(t *testing.T) {
-// 	mockRepo := &MockTaskRepository{}
-// 	taskService := NewTaskService(mockRepo)
+	require.NoError(t, err)
+	require.NotNil(t, task)
+	assert.Equal(t, 5, task.ID)
+	assert.Equal(t, 7, task.ProjectID)
+}
 
-// 	updateTask := entities.Task{
-// 		Title:  "Updated Task",
-// 		Status: "DONE",
-// 	}
+func TestTaskService_GetTaskById_Forbidden(t *testing.T) {
+	taskRepo := &mockTaskRepository{
+		getTaskByIDFn: func(id int) (*entities.Task, error) {
+			return &entities.Task{ID: id, ProjectID: 7, Title: "Task", Status: "TODO"}, nil
+		},
+	}
+	projectRepo := &mockProjectRepository{
+		getByIDFn: func(projectID int) (entities.Project, error) {
+			return entities.Project{ID: projectID, OwnerID: 99}, nil
+		},
+	}
 
-// 	result, err := taskService.UpdateTask(0, updateTask)
+	service := NewTaskService(taskRepo, projectRepo)
+	task, err := service.GetTaskById(12, 5)
 
-// 	assert.Error(t, err)
-// 	assert.Nil(t, result)
-// 	assert.Equal(t, "invalid id", err.Error())
-// }
+	assert.Error(t, err)
+	assert.Equal(t, "forbidden", err.Error())
+	assert.Nil(t, task)
+}
 
-// func TestUpdateTaskInvalidStatus(t *testing.T) {
-// 	mockRepo := &MockTaskRepository{}
-// 	taskService := NewTaskService(mockRepo)
+func TestTaskService_CreateTask_Success(t *testing.T) {
+	var receivedTask entities.Task
+	taskRepo := &mockTaskRepository{
+		createTaskFn: func(task entities.Task) (entities.Task, error) {
+			receivedTask = task
+			task.ID = 100
+			return task, nil
+		},
+	}
+	projectRepo := &mockProjectRepository{
+		getByIDFn: func(projectID int) (entities.Project, error) {
+			return entities.Project{ID: projectID, OwnerID: 7}, nil
+		},
+	}
 
-// 	updateTask := entities.Task{
-// 		Title:  "Updated Task",
-// 		Status: "INVALID",
-// 	}
+	service := NewTaskService(taskRepo, projectRepo)
+	result, err := service.CreateTask(7, entities.Task{ProjectID: 3, Title: "New task", Status: "TODO"})
 
-// 	result, err := taskService.UpdateTask(1, updateTask)
+	require.NoError(t, err)
+	require.Equal(t, 100, result.ID)
+	require.NotNil(t, receivedTask.AssigneeID)
+	assert.Equal(t, 7, *receivedTask.AssigneeID)
+	assert.Equal(t, "TODO", receivedTask.Status)
+}
 
-// 	assert.Error(t, err)
-// 	assert.Nil(t, result)
-// 	assert.Equal(t, "invalid status", err.Error())
-// }
+func TestTaskService_CreateTask_InvalidStatus(t *testing.T) {
+	taskRepo := &mockTaskRepository{}
+	projectRepo := &mockProjectRepository{
+		getByIDFn: func(projectID int) (entities.Project, error) {
+			return entities.Project{ID: projectID, OwnerID: 7}, nil
+		},
+	}
 
-// func TestUpdateTaskNotFound(t *testing.T) {
-// 	mockRepo := &MockTaskRepository{}
-// 	taskService := NewTaskService(mockRepo)
+	service := NewTaskService(taskRepo, projectRepo)
+	result, err := service.CreateTask(7, entities.Task{ProjectID: 3, Title: "New task", Status: "invalid"})
 
-// 	updateTask := entities.Task{
-// 		Title:  "Updated Task",
-// 		Status: "DONE",
-// 	}
+	assert.Error(t, err)
+	assert.Equal(t, "invalid status", err.Error())
+	assert.Equal(t, entities.Task{}, result)
+}
 
-// 	result, err := taskService.UpdateTask(999, updateTask)
+func TestTaskService_CreateTask_ForbiddenProjectOwner(t *testing.T) {
+	taskRepo := &mockTaskRepository{}
+	projectRepo := &mockProjectRepository{
+		getByIDFn: func(projectID int) (entities.Project, error) {
+			return entities.Project{ID: projectID, OwnerID: 99}, nil
+		},
+	}
 
-// 	assert.Error(t, err)
-// 	assert.Nil(t, result)
-// 	assert.Equal(t, "task not found", err.Error())
-// }
+	service := NewTaskService(taskRepo, projectRepo)
+	result, err := service.CreateTask(7, entities.Task{ProjectID: 3, Title: "New task", Status: "TODO"})
 
-// func TestDeleteTaskSuccess(t *testing.T) {
-// 	mockRepo := &MockTaskRepository{
-// 		tasks: []entities.Task{
-// 			{
-// 				ID:     1,
-// 				Title:  "Task Delete",
-// 				Status: "TODO",
-// 			},
-// 		},
-// 	}
-// 	taskService := NewTaskService(mockRepo)
+	assert.Error(t, err)
+	assert.Equal(t, "unauthorized to create task in this project", err.Error())
+	assert.Equal(t, entities.Task{}, result)
+}
 
-// 	err := taskService.DeleteTask(1)
+func TestTaskService_UpdateTask_Success(t *testing.T) {
+	var receivedTask entities.Task
+	taskRepo := &mockTaskRepository{
+		getTaskByIDFn: func(id int) (*entities.Task, error) {
+			return &entities.Task{ID: id, ProjectID: 8, Title: "Old", Status: "TODO"}, nil
+		},
+		updateTaskFn: func(id int, task entities.Task) (*entities.Task, error) {
+			receivedTask = task
+			task.ID = id
+			return &task, nil
+		},
+	}
+	projectRepo := &mockProjectRepository{
+		getByIDFn: func(projectID int) (entities.Project, error) {
+			return entities.Project{ID: projectID, OwnerID: 7}, nil
+		},
+	}
 
-// 	assert.NoError(t, err)
-// }
+	service := NewTaskService(taskRepo, projectRepo)
+	result, err := service.UpdateTask(5, 7, entities.Task{Title: "Updated", Status: "done"})
 
-// func TestDeleteTaskInvalidID(t *testing.T) {
-// 	mockRepo := &MockTaskRepository{}
-// 	taskService := NewTaskService(mockRepo)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, 5, result.ID)
+	assert.Equal(t, "DONE", receivedTask.Status)
+}
 
-// 	err := taskService.DeleteTask(0)
+func TestTaskService_UpdateTask_InvalidStatus(t *testing.T) {
+	taskRepo := &mockTaskRepository{
+		getTaskByIDFn: func(id int) (*entities.Task, error) {
+			return &entities.Task{ID: id, ProjectID: 8, Title: "Old", Status: "TODO"}, nil
+		},
+	}
+	projectRepo := &mockProjectRepository{
+		getByIDFn: func(projectID int) (entities.Project, error) {
+			return entities.Project{ID: projectID, OwnerID: 7}, nil
+		},
+	}
 
-// 	assert.Error(t, err)
-// 	assert.Equal(t, "invalid id", err.Error())
-// }
+	service := NewTaskService(taskRepo, projectRepo)
+	result, err := service.UpdateTask(5, 7, entities.Task{Title: "Updated", Status: "bad"})
 
-// func TestDeleteTaskNotFound(t *testing.T) {
-// 	mockRepo := &MockTaskRepository{}
-// 	taskService := NewTaskService(mockRepo)
+	assert.Error(t, err)
+	assert.Equal(t, "invalid status", err.Error())
+	assert.Nil(t, result)
+}
 
-// 	err := taskService.DeleteTask(999)
+func TestTaskService_UpdateTask_Forbidden(t *testing.T) {
+	taskRepo := &mockTaskRepository{
+		getTaskByIDFn: func(id int) (*entities.Task, error) {
+			return &entities.Task{ID: id, ProjectID: 8, Title: "Old", Status: "TODO"}, nil
+		},
+	}
+	projectRepo := &mockProjectRepository{
+		getByIDFn: func(projectID int) (entities.Project, error) {
+			return entities.Project{ID: projectID, OwnerID: 99}, nil
+		},
+	}
 
-// 	assert.Error(t, err)
-// 	assert.Equal(t, "task not found", err.Error())
-// }
+	service := NewTaskService(taskRepo, projectRepo)
+	result, err := service.UpdateTask(5, 7, entities.Task{Title: "Updated", Status: "TODO"})
 
+	assert.Error(t, err)
+	assert.Equal(t, "unauthorized to update this task", err.Error())
+	assert.Nil(t, result)
+}
+
+func TestTaskService_DeleteTask_Success(t *testing.T) {
+	taskRepo := &mockTaskRepository{
+		getTaskByIDFn: func(id int) (*entities.Task, error) {
+			return &entities.Task{ID: id, ProjectID: 4, Title: "Delete me", Status: "TODO"}, nil
+		},
+		deleteTaskFn: func(id int) error {
+			return nil
+		},
+	}
+	projectRepo := &mockProjectRepository{
+		getByIDFn: func(projectID int) (entities.Project, error) {
+			return entities.Project{ID: projectID, OwnerID: 7}, nil
+		},
+	}
+
+	service := NewTaskService(taskRepo, projectRepo)
+	err := service.DeleteTask(5, 7)
+
+	require.NoError(t, err)
+}
+
+func TestTaskService_DeleteTask_Forbidden(t *testing.T) {
+	taskRepo := &mockTaskRepository{
+		getTaskByIDFn: func(id int) (*entities.Task, error) {
+			return &entities.Task{ID: id, ProjectID: 4, Title: "Delete me", Status: "TODO"}, nil
+		},
+	}
+	projectRepo := &mockProjectRepository{
+		getByIDFn: func(projectID int) (entities.Project, error) {
+			return entities.Project{ID: projectID, OwnerID: 99}, nil
+		},
+	}
+
+	service := NewTaskService(taskRepo, projectRepo)
+	err := service.DeleteTask(5, 7)
+
+	assert.Error(t, err)
+	assert.Equal(t, "unauthorized to delete this task", err.Error())
+}

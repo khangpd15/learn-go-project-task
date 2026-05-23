@@ -4,12 +4,10 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
-	"fmt"
 	requestDTO "task_api/internal/dto/request/user"
 	"task_api/internal/mapper"
 	"task_api/internal/response"
 	"task_api/internal/services"
-	"task_api/internal/validation"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -83,8 +81,6 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	userEntity := mapper.UserToEntity(req)
 
 	createdUser, err := h.service.CreateUser(userEntity)
-	fmt.Println("Password received:", req.Password)
-fmt.Println("Password valid:", validation.IsValidPassword(req.Password))
 	if err != nil {
 		c.JSON(mapUserErrorToStatus(err), response.ErrorResponse("Failed to create user", err.Error()))
 		return

@@ -1,262 +1,80 @@
-# Task Management API - Go Project
+# Task Management API
 
-Một ứng dụng API quản lý công việc được xây dựng bằng **Go** và **Gin Framework**.
+REST API viết bằng Go, Gin, GORM và PostgreSQL theo hướng Clean Architecture.
 
-## 📋 Mục lục
+## Tính năng
+- Auth `register` / `login` bằng JWT
+- Quản lý `users`, `projects`, `tasks`
+- PostgreSQL schema qua migrations SQL
 
-- [Tổng quan về dự án](#tổng-quan-về-dự-án)
-- [Cấu trúc thư mục](#cấu-trúc-thư-mục)
-- [Công nghệ sử dụng](#công-nghệ-sử-dụng)
-- [Cài đặt và chạy](#cài-đặt-và-chạy)
-- [API Endpoints](#api-endpoints)
-- [Cấu trúc kiến trúc](#cấu-trúc-kiến-trúc)
-- [Các thành phần chính](#các-thành-phần-chính)
+## Công nghệ
+- Go 1.26.3
+- Gin 1.12.0
+- GORM 1.31.1
+- PostgreSQL
+- JWT (`github.com/golang-jwt/jwt/v5`)
 
----
-
-## 🎯 Tổng quan về dự án
-
-**Task Management API** là một ứng dụng RESTful API cho phép quản lý các công việc. Ứng dụng cung cấp các chức năng:
-
-- ✅ Xem tất cả công việc
-- ✅ Xem chi tiết công việc theo ID
-- ✅ Tạo công việc mới
-- ✅ Cập nhật công việc
-- ✅ Xóa công việc
-
----
-
-## 📁 Cấu trúc thư mục
-
-```
-Week1_Golang/
-├── cmd/
-│   └── main.go                    # Điểm vào ứng dụng
-├── internal/
-│   ├── config/                    # Cấu hình ứng dụng
-│   ├── data/
-│   │   └── mock_data.go          # Dữ liệu mô phỏng
-│   ├── entities/
-│   │   └── task.go               # Cấu trúc Task
-│   ├── handler/
-│   │   └── task_handler.go       # Xử lý request HTTP
-│   ├── middleware/
-│   │   ├── logger.go             # Middleware ghi log
-│   │   ├── recovery.go           # Middleware xử lý lỗi
-│   │   └── request_id.go         # Middleware tạo request ID
-│   ├── repositories/
-│   │   └── task_repository.go    # Truy cập dữ liệu
-│   ├── response/
-│   │   └── response.go           # Định dạng response
-│   ├── routes/
-│   │   └── routes.go             # Định tuyến API
-│   ├── services/
-│   │   └── task_service.go       # Logic nghiệp vụ
-│   └── validation/
-│       └── task_validation.go    # Xác thực dữ liệu
-├── go.mod                         # Module definition
-└── README.md                      # Tài liệu này
-```
-
----
-
-## 🛠️ Công nghệ sử dụng
-
-| Công nghệ | Phiên bản | Mô tả |
-|-----------|----------|--------|
-| **Go** | 1.26.3 | Ngôn ngữ lập trình |
-| **Gin** | 1.12.0 | Web framework |
-| **MongoDB Driver** | 2.5.0 | Trình điều khiển MongoDB (có thể sử dụng trong tương lai) |
-| **Validator** | 10.30.1 | Xác thực dữ liệu |
-
----
-
-## 🚀 Cài đặt và chạy
-
-### Yêu cầu
-- Go 1.26.3 trở lên
-- Git (tuỳ chọn)
-
-### Bước 1: Mở thư mục dự án
-```bash
-cd Week1_Golang
-```
-
-### Bước 2: Cài đặt dependencies
+## Chạy local
 ```bash
 go mod download
-```
-
-### Bước 3: Chạy ứng dụng local
-```bash
+go test ./...
 go run cmd/main.go
 ```
 
-Ứng dụng sẽ chạy tại `http://localhost:8080`
+## Cấu hình
+Ứng dụng hiện dùng PostgreSQL local trong `internal/database/postgres.go` và cần `JWT_SECRET` để ký token.
 
-### Bước 4: Kiểm tra server
+Nếu chạy bằng Docker Compose:
 ```bash
-curl http://localhost:8080/api/v1/tasks
+docker compose up -d db
 ```
 
-Lưu ý: các route dưới `/api/v1/*` cần header `User-ID` để đi qua middleware xác thực. Route `/health` thì không cần.
+## Endpoint chính
 
-Ví dụ kiểm tra local bằng PowerShell:
-```powershell
-Invoke-RestMethod -Method Get http://localhost:8080/health
-Invoke-RestMethod -Method Get http://localhost:8080/api/v1/tasks -Headers @{"User-ID"="2"}
-```
+- `GET /health`
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
 
----
+### Protected
+- `GET /api/v1/tasks`
+- `GET /api/v1/tasks/:id`
+- `POST /api/v1/tasks`
+- `PUT /api/v1/tasks/:id`
+- `DELETE /api/v1/tasks/:id`
+- `GET /api/v1/users`
+- `GET /api/v1/users/:id`
+- `GET /api/v1/users/email/:email`
+- `GET /api/v1/users/fullname/:fullname`
+- `POST /api/v1/users`
+- `PUT /api/v1/users/:id`
+- `DELETE /api/v1/users/:id`
+- `GET /api/v1/projects/me`
+- `GET /api/v1/projects`
+- `GET /api/v1/projects/:id`
+- `PUT /api/v1/projects/:id`
+- `DELETE /api/v1/projects/:id`
 
-## 📡 API Endpoints
-
-### 1. Lấy tất cả công việc
-**GET** `/api/v1/tasks`
-
+## Auth mẫu
 ```bash
-curl http://localhost:8080/api/v1/tasks -H "User-ID: 2"
-```
-
-**Response:**
-```json
-{
-  "message": "get all tasks successfully",
-  "data": [
-    {
-      "id": 1,
-      "title": "Task 1",
-      "description": "Description 1",
-      "status": "TODO",
-      "assignee": "User 1"
-    }
-  ]
-}
-```
-
----
-
-### 2. Lấy công việc theo ID
-**GET** `/api/v1/tasks/:id`
-
-```bash
-curl http://localhost:8080/api/v1/tasks/1 -H "User-ID: 2"
-```
-
-**Response:**
-```json
-{
-  "message": "Task found",
-  "data": {
-    "id": 1,
-    "title": "Task 1",
-    "description": "Description 1",
-    "status": "TODO",
-    "assignee": "User 1"
-  }
-}
-```
-
----
-
-### 3. Tạo công việc mới
-**POST** `/api/v1/tasks`
-
-```bash
-curl -X POST http://localhost:8080/api/v1/tasks \
-  -H "User-ID: 2" \
+curl -X POST http://localhost:8080/api/v1/auth/register \
   -H "Content-Type: application/json" \
-  -d '{
-    "title": "New Task",
-    "description": "Task Description",
-    "status": "TODO",
-    "assignee": "User Name"
-  }'
-```
+  -d '{"fullname":"Test User","email":"test@example.com","password":"Password@123"}'
 
-**Status hợp lệ:** `TODO`, `IN_PROGRESS`, `DONE`
-
----
-
-### 4. Cập nhật công việc
-**PUT** `/api/v1/tasks/:id`
-
-```bash
-curl -X PUT http://localhost:8080/api/v1/tasks/1 \
-  -H "User-ID: 2" \
+curl -X POST http://localhost:8080/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{
-    "title": "Updated Task",
-    "description": "Updated Description",
-    "status": "IN_PROGRESS",
-    "assignee": "Updated User"
-  }'
+  -d '{"email":"test@example.com","password":"Password@123"}'
 ```
 
----
+Protected routes cần header `Authorization: Bearer <token>`.
 
-### 5. Xóa công việc
-**DELETE** `/api/v1/tasks/:id`
-
+## Test
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/tasks/1 -H "User-ID: 1"
+go test ./...
 ```
 
----
-
-## 🏗️ Cấu trúc kiến trúc
-
-Ứng dụng sử dụng mô hình **Clean Architecture** với các layer sau:
-
-```
-Request HTTP
-    ↓
-Routes (routes.go)
-    ↓
-Handler (task_handler.go) - Xử lý request/response
-    ↓
-Service (task_service.go) - Logic nghiệp vụ
-    ↓
-Repository (task_repository.go) - Truy cập dữ liệu
-    ↓
-Data (mock_data.go) - Dữ liệu
-```
-
----
-
-## 🔧 Các thành phần chính
-
-### 1. **Entities** (`internal/entities/task.go`)
-Định nghĩa cấu trúc dữ liệu Task:
-
-```go
-type Task struct {
-    ID          int    `json:"id"`
-    Title       string `json:"title"`
-    Description string `json:"description"`
-    Status      string `json:"status"`
-    Assignee    string `json:"assignee"`
-}
-```
-
-### 2. **Handler** (`internal/handler/task_handler.go`)
-Xử lý các HTTP request và trả về response:
-
-- `GetAllTasks()` - Lấy tất cả tasks
-- `GetTaskById()` - Lấy task theo ID
-- `CreateTask()` - Tạo task mới
-- `UpdateTask()` - Cập nhật task
-- `DeleteTask()` - Xóa task
-
-### 3. **Service** (`internal/services/task_service.go`)
-Chứa logic nghiệp vụ và xác thực:
-
-- Kiểm tra status hợp lệ: `TODO`, `IN_PROGRESS`, `DONE`
-- Kiểm tra ID hợp lệ
-- Gọi Repository để thực hiện thao tác dữ liệu
-
-### 4. **Repository** (`internal/repositories/task_repository.go`)
-Truy cập và quản lý dữ liệu:
+## Ghi chú
+- Các route protected dùng middleware JWT.
+- Status task hợp lệ: `TODO`, `IN_PROGRESS`, `DONE`.
 
 - `GetAllTasks()` - Lấy tất cả
 - `GetTaskById()` - Lấy theo ID
