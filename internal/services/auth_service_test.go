@@ -7,6 +7,8 @@ import (
 	requestauth "task_api/internal/dto/request/auth"
 	"task_api/internal/entities"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
@@ -87,7 +89,7 @@ func TestAuthService_Login_InvalidPassword(t *testing.T) {
 	token, err := service.Login(requestauth.LoginRequest{Email: "user@example.com", Password: "Wrong@123"})
 
 	assert.Error(t, err)
-	assert.Equal(t, "invalid email or password", err.Error())
+	assert.ErrorIs(t, err, ErrInvalidCredentials)
 	assert.Empty(t, token)
 }
 
@@ -103,7 +105,19 @@ func TestAuthService_Login_UserNotFound(t *testing.T) {
 	token, err := service.Login(requestauth.LoginRequest{Email: "missing@example.com", Password: "Password@123"})
 
 	assert.Error(t, err)
-	assert.Equal(t, "invalid email or password", err.Error())
+	assert.ErrorIs(t, err, ErrInvalidCredentials)
+	assert.Empty(t, token)
+}
+
+func TestAuthService_Login_InvalidInput(t *testing.T) {
+	repo := &mockUserRepository{}
+
+	service := NewAuthService(repo)
+
+	token, err := service.Login(requestauth.LoginRequest{Email: "", Password: ""})
+
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrInvalidInput)
 	assert.Empty(t, token)
 }
 
@@ -142,7 +156,7 @@ func TestAuthService_Register_DuplicateEmail(t *testing.T) {
 	err := service.Register(requestauth.RegisterRequest{FullName: "Test User", Email: "test@example.com", Password: "Password@123"})
 
 	assert.Error(t, err)
-	assert.Equal(t, "email already exists", err.Error())
+	assert.ErrorIs(t, err, ErrEmailAlreadyExists)
 }
 
 func TestAuthService_Register_InvalidInputs(t *testing.T) {
@@ -155,18 +169,33 @@ func TestAuthService_Register_InvalidInputs(t *testing.T) {
 	tests := []struct {
 		name string
 		req  requestauth.RegisterRequest
-		want string
+		want error
 	}{
-		{name: "missing field", req: requestauth.RegisterRequest{FullName: "", Email: "test@example.com", Password: "Password@123"}, want: "all fields are required"},
-		{name: "invalid email", req: requestauth.RegisterRequest{FullName: "Test User", Email: "invalid-email", Password: "Password@123"}, want: "invalid email format"},
-		{name: "invalid password", req: requestauth.RegisterRequest{FullName: "Test User", Email: "test@example.com", Password: "short"}, want: "password must be at least 8 characters and contain at least one letter and one number and one special character"},
+		{name: "missing field", req: requestauth.RegisterRequest{FullName: "", Email: "test@example.com", Password: "Password@123"}, want: ErrInvalidInput},
+		{name: "invalid email", req: requestauth.RegisterRequest{FullName: "Test User", Email: "invalid-email", Password: "Password@123"}, want: ErrInvalidEmail},
+		{name: "invalid password", req: requestauth.RegisterRequest{FullName: "Test User", Email: "test@example.com", Password: "short"}, want: ErrInvalidPassword},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := service.Register(tt.req)
 			assert.Error(t, err)
-			assert.Equal(t, tt.want, err.Error())
+			assert.ErrorIs(t, err, tt.want)
 		})
 	}
+}
+
+func TestAuthService_Register_UniqueViolationMapsToDuplicateEmail(t *testing.T) {
+	repo := &mockUserRepository{
+		existsByEmailFn: func(email string) (bool, error) { return false, nil },
+		createUserFn: func(user entities.User) (entities.User, error) {
+			return entities.User{}, &pgconn.PgError{Code: "23505"}
+		},
+	}
+
+	service := NewAuthService(repo)
+	err := service.Register(requestauth.RegisterRequest{FullName: "Test User", Email: "test@example.com", Password: "Password@123"})
+
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrEmailAlreadyExists)
 }

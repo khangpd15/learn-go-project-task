@@ -1,9 +1,9 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
-	"errors"
 	requestDTO "task_api/internal/dto/request/project"
 	"task_api/internal/mapper"
 	"task_api/internal/response"
@@ -51,6 +51,14 @@ func (h *ProjectHandler) GetProjectByID(c *gin.Context) {
 	}
 	project, err := h.service.GetProjectByID(projectID)
 	if err != nil {
+		if errors.Is(err, services.ErrInvalidProjectID) {
+			c.JSON(http.StatusBadRequest, response.ErrorResponse("Invalid project ID", err.Error()))
+			return
+		}
+		if errors.Is(err, services.ErrProjectNotFound) {
+			c.JSON(http.StatusNotFound, response.ErrorResponse("Project not found", err.Error()))
+			return
+		}
 		c.JSON(http.StatusInternalServerError, response.ErrorResponse("Failed to get project", err.Error()))
 		return
 	}

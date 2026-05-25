@@ -8,6 +8,7 @@ import (
 	"task_api/internal/mapper"
 	"task_api/internal/response"
 	"task_api/internal/services"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -77,15 +78,14 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, response.ErrorResponse("Invalid request body", err.Error()))
 		return
 	}
-    
-	userEntity := mapper.UserToEntity(req)
 
-	createdUser, err := h.service.CreateUser(userEntity)
+	createdUser, err := h.service.CreateUser(req)
+
 	if err != nil {
 		c.JSON(mapUserErrorToStatus(err), response.ErrorResponse("Failed to create user", err.Error()))
 		return
 	}
-     
+
 	c.JSON(http.StatusCreated, response.SuccessResponse("User created successfully", mapper.UserToResponse(createdUser)))
 }
 
@@ -102,8 +102,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	updateUser := mapper.ToUpdateUserEntity(req)
-	updatedUser, err := h.service.UpdateUser(id, updateUser)
+	updatedUser, err := h.service.UpdateUser(id, req)
 	if err != nil {
 		c.JSON(mapUserErrorToStatus(err), response.ErrorResponse("Failed to update user", err.Error()))
 		return

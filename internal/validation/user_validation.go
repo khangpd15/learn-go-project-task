@@ -1,6 +1,9 @@
 package validation
 
-import "regexp"
+import (
+	"regexp"
+)
+
 
 func IsValidPassword(password string) bool {
 	if len(password) < 6 {
@@ -27,3 +30,5 @@ func IsValidEmail(email string) bool {
 func IsValidIdUser(id int) bool {
 	return id > 0
 }
+
+

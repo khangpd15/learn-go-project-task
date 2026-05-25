@@ -4,11 +4,13 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+
+	TaskRequestDTO "task_api/internal/dto/request/task"
+	"task_api/internal/mapper"
 	"task_api/internal/response"
 	"task_api/internal/services"
 	"task_api/internal/utils"
-   TaskRequestDTO "task_api/internal/dto/request/task"
-   "task_api/internal/mapper"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,19 +21,24 @@ type TaskHandler struct {
 func NewTaskHandler(service *services.TaskService) *TaskHandler {
 	return &TaskHandler{service: service}
 }
+
 func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 	currentUserID, err := utils.CurrentUserID(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, response.ErrorResponse("Unauthorized", err.Error()))
 		return
 	}
-	tasks, err := h.service.GetAllTasks(currentUserID)
+	ctx := c.Request.Context()
+
+	tasks, err := h.service.GetAllTasks(currentUserID, ctx)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse("Failed to get tasks", err.Error()))
+		c.JSON(mapTaskErrorToStatus(err), response.ErrorResponse("Failed to get tasks", err.Error()))
 		return
 	}
-	c.JSON(http.StatusOK, response.SuccessResponse("get all tasks successfully", mapper.TasksToResponses(tasks)))
+
+	c.JSON(http.StatusOK, response.SuccessResponse("Get all tasks successfully", mapper.TasksToResponses(tasks)))
 }
+
 func (h *TaskHandler) GetTaskById(c *gin.Context) {
 	currentUserID, err := utils.CurrentUserID(c)
 	if err != nil {
@@ -39,88 +46,113 @@ func (h *TaskHandler) GetTaskById(c *gin.Context) {
 		return
 	}
 
-	idString := c.Param("id")
-	id, err := strconv.Atoi(idString)
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse("Invalid task ID", errors.New("invalid task ID").Error()))
+		c.JSON(http.StatusBadRequest, response.ErrorResponse("Invalid task ID", "invalid task ID"))
+		return
+	}
+	ctx := c.Request.Context()
+
+	task, err := h.service.GetTaskById(currentUserID, ctx, id)
+	if err != nil {
+		c.JSON(mapTaskErrorToStatus(err), response.ErrorResponse("Failed to get task", err.Error()))
 		return
 	}
 
-	mappedTask, err := h.service.GetTaskById(currentUserID, id)
-	if err != nil {
-		if errors.Is(err, errors.New("forbidden")) {
-			c.JSON(http.StatusForbidden, response.ErrorResponse("Forbidden", err.Error()))
-			return
-		}
-		c.JSON(http.StatusNotFound, response.ErrorResponse("Task not found", err.Error()))
-		return
-	}
-	c.JSON(http.StatusOK, response.SuccessResponse("Task found", mapper.ToTaskResponse(*mappedTask)))
-
+	c.JSON(http.StatusOK, response.SuccessResponse("Task found", mapper.ToTaskResponse(*task)))
 }
-func (h *TaskHandler) CreateTask(c *gin.Context) {
 
-currentID, err := utils.CurrentUserID(c)
+func (h *TaskHandler) CreateTask(c *gin.Context) {
+	currentUserID, err := utils.CurrentUserID(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, response.ErrorResponse("Unauthorized", err.Error()))
 		return
 	}
-var req TaskRequestDTO.CreateTaskRequest
+
+	var req TaskRequestDTO.CreateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, response.ErrorResponse("Invalid request body", err.Error()))
 		return
 	}
-task := mapper.CreateTaskRequestToTaskEntity(req)
-	createdTask, err := h.service.CreateTask(currentID, task)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse("Failed to create task", err.Error()))
-		return
-	}
-	c.JSON(http.StatusCreated, response.SuccessResponse("Task created successfully", createdTask))
 
-}
-func (h *TaskHandler) UpdateTask(c *gin.Context) {
-    currentID,err := utils.CurrentUserID(c)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, response.ErrorResponse("Unauthorized", err.Error()))
-			return
-		}
-	taskID := c.Param("id")
-	id, err := strconv.Atoi(taskID)
+	task := mapper.CreateTaskRequestToTaskEntity(req)
+
+	createdTask, err := h.service.CreateTask(currentUserID, task)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse("Invalid task ID", err.Error()))
+		c.JSON(mapTaskErrorToStatus(err), response.ErrorResponse("Failed to create task", err.Error()))
 		return
 	}
+
+	c.JSON(http.StatusCreated, response.SuccessResponse("Task created successfully", mapper.ToTaskResponse(createdTask)))
+}
+
+func (h *TaskHandler) UpdateTask(c *gin.Context) {
+	currentUserID, err := utils.CurrentUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, response.ErrorResponse("Unauthorized", err.Error()))
+		return
+	}
+
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, response.ErrorResponse("Invalid task ID", "invalid task ID"))
+		return
+	}
+
 	var req TaskRequestDTO.UpdateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, response.ErrorResponse("Invalid request body", err.Error()))
 		return
 	}
-updateTask := mapper.UpdateTaskRequestToTaskEntity(req)
 
-	updatedTask, err := h.service.UpdateTask(id,currentID, updateTask)
+	updatedTask, err := h.service.UpdateTask(id, currentUserID, req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse("Failed to update task", err.Error()))
+		c.JSON(mapTaskErrorToStatus(err), response.ErrorResponse("Failed to update task", err.Error()))
 		return
 	}
-	c.JSON(http.StatusOK, response.SuccessResponse("Task updated successfully", updatedTask))
+
+	c.JSON(http.StatusOK, response.SuccessResponse("Task updated successfully", mapper.ToTaskResponse(*updatedTask)))
 }
+
 func (h *TaskHandler) DeleteTask(c *gin.Context) {
-	taskID := c.Param("id")
-	id, err := strconv.Atoi(taskID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse("Invalid task ID", err.Error()))
-		return
-	}
 	currentUserID, err := utils.CurrentUserID(c)
 	if err != nil {
-		c.JSON(401, response.ErrorResponse("Unauthorized", err.Error()))
+		c.JSON(http.StatusUnauthorized, response.ErrorResponse("Unauthorized", err.Error()))
 		return
 	}
-	err = h.service.DeleteTask(id, currentUserID)
+
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(404, response.ErrorResponse("Failed to delete task", err.Error()))
+		c.JSON(http.StatusBadRequest, response.ErrorResponse("Invalid task ID", "invalid task ID"))
 		return
 	}
-	c.JSON(200, response.SuccessResponse("Task deleted successfully", nil))
+
+	if err := h.service.DeleteTask(id, currentUserID); err != nil {
+		c.JSON(mapTaskErrorToStatus(err), response.ErrorResponse("Failed to delete task", err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, response.SuccessResponse("Task deleted successfully", nil))
+}
+
+func mapTaskErrorToStatus(err error) int {
+	switch {
+	case errors.Is(err, services.ErrInvalidTaskID),
+		errors.Is(err, services.ErrInvalidProjectID),
+		errors.Is(err, services.ErrInvalidStatus),
+		errors.Is(err, services.ErrInvalidAssigneeID):
+		return http.StatusBadRequest
+
+	case errors.Is(err, services.ErrUnauthorized):
+		return http.StatusUnauthorized
+
+	case errors.Is(err, services.ErrForbidden):
+		return http.StatusForbidden
+	case errors.Is(err, services.ErrTaskNotFound),
+		errors.Is(err, services.ErrProjectNotFound):
+		return http.StatusNotFound
+
+	default:
+		return http.StatusInternalServerError
+	}
 }

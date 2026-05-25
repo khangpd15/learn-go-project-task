@@ -27,14 +27,25 @@ func CreateTaskRequestToTaskEntity(createReq TaskRequest.CreateTaskRequest) enti
 		Title:       createReq.Title,
 		Description: createReq.Description,
 		Status:      "TODO", // Default status for new tasks
+		AssigneeID: nil,
 		
 	}
 }
 func UpdateTaskRequestToTaskEntity(updateReq TaskRequest.UpdateTaskRequest) entities.Task {
-	return entities.Task{
-		Title:       updateReq.Title,
-		Description: updateReq.Description,
-		Status:      updateReq.Status,
+	task := entities.Task{}
+
+	if updateReq.Title != nil {
+		task.Title = *updateReq.Title
 	}
+
+	if updateReq.Description != nil {
+		task.Description = *updateReq.Description
+	}
+
+	if updateReq.Status != nil {
+		task.Status = *updateReq.Status
+	}
+
+	return task
 }
 

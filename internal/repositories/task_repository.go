@@ -11,6 +11,7 @@ CreateTask(task entities.Task) (entities.Task, error)
 UpdateTask(id int, updatedTask entities.Task) (*entities.Task, error)
 DeleteTask(id int)  error
 GetTaskListByProjectID(projectID int) ([]entities.Task, error)
+GetAllTasksByUserID(userID int) ([]entities.Task, error)
 
 }
 
@@ -41,6 +42,22 @@ func (r *TaskRepository) GetTaskListByProjectID(projectID int) ([]entities.Task,
 	if err != nil {
 		return nil, err
 	}
+	return tasks, nil
+}
+func (r *TaskRepository) GetAllTasksByUserID(userID int) ([]entities.Task, error) {
+	var tasks []entities.Task
+
+	err := r.db.
+		Joins("JOIN projects ON projects.id = tasks.project_id").
+		Where("projects.owner_id = ? OR tasks.assignee_id = ?", userID, userID).
+		Order("tasks.id ASC").
+		Find(&tasks).
+		Error
+
+	if err != nil {
+		return nil, err
+	}
+
 	return tasks, nil
 }
 

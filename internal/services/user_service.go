@@ -1,19 +1,14 @@
 package services
 
 import (
-	"errors"
+	requestDTO"task_api/internal/dto/request/user"
 	"task_api/internal/entities"
 	"task_api/internal/repositories"
 	"task_api/internal/utils"
 	"task_api/internal/validation"
 )
 
-var (
-	ErrInvalidUserID     = errors.New("invalid user id")
-	ErrInvalidEmail      = errors.New("invalid email")
-	ErrInvalidPassword   = errors.New("invalid password")
-	ErrEmailAlreadyExist = errors.New("email already exists")
-)
+
 
 type UserService struct {
 	userRepository repositories.UserRepositoryInterface
@@ -47,15 +42,15 @@ func (s *UserService) GetUserByEmail(email string) (*entities.User, error) {
 	return s.userRepository.GetUserByEmail(email)
 }
 
-func (s *UserService) CreateUser(user entities.User) (entities.User, error) {
-	if !validation.IsValidPassword(user.PasswordHash) {
+func (s *UserService) CreateUser(req requestDTO.CreateUserRequest) (entities.User, error) {
+	if !validation.IsValidPassword(req.Password) {
 		return entities.User{}, ErrInvalidPassword
 	}
-	if !validation.IsValidEmail(user.Email) {
+	if !validation.IsValidEmail(req.Email) {
 		return entities.User{}, ErrInvalidEmail
 	}
 
-	exists, err := s.userRepository.ExistsByEmail(user.Email)
+	exists, err := s.userRepository.ExistsByEmail(req.Email)
 	if err != nil {
 		return entities.User{}, err
 	}
@@ -63,40 +58,52 @@ func (s *UserService) CreateUser(user entities.User) (entities.User, error) {
 		return entities.User{}, ErrEmailAlreadyExist
 	}
 
-	hashedPassword, err := utils.HashPassword(user.PasswordHash)
+	hashedPassword, err := utils.HashPassword(req.Password)
 	if err != nil {
 		return entities.User{}, err
 	}
 
-	user.PasswordHash = hashedPassword
+	user := entities.User{
+		FullName:     req.FullName,
+		Email:        req.Email,
+		PasswordHash: hashedPassword,
+	}
 	return s.userRepository.CreateUser(user)
 }
 
-func (s *UserService) UpdateUser(id int, updatedUser entities.User) (*entities.User, error) {
+func (s *UserService) UpdateUser(id int, req requestDTO.UpdateUserRequest) (*entities.User, error) {
 	if !validation.IsValidIdUser(id) {
 		return nil, ErrInvalidUserID
 	}
 
-	if updatedUser.Email != "" {
-		if !validation.IsValidEmail(updatedUser.Email) {
+	updatedUser := entities.User{}
+
+	if req.FullName != nil {
+		updatedUser.FullName = *req.FullName
+	}
+
+	if req.Email != nil && *req.Email != "" {
+		if !validation.IsValidEmail(*req.Email) {
 			return nil, ErrInvalidEmail
 		}
 
-		exists, err := s.userRepository.ExistsByEmailAndIDNot(updatedUser.Email, id)
+		exists, err := s.userRepository.ExistsByEmailAndIDNot(*req.Email, id)
 		if err != nil {
 			return nil, err
 		}
 		if exists {
 			return nil, ErrEmailAlreadyExist
 		}
+
+		updatedUser.Email = *req.Email
 	}
 
-	if updatedUser.PasswordHash != "" {
-		if !validation.IsValidPassword(updatedUser.PasswordHash) {
+	if req.Password != nil && *req.Password != "" {
+		if !validation.IsValidPassword(*req.Password) {
 			return nil, ErrInvalidPassword
 		}
 
-		hashedPassword, err := utils.HashPassword(updatedUser.PasswordHash)
+		hashedPassword, err := utils.HashPassword(*req.Password)
 		if err != nil {
 			return nil, err
 		}

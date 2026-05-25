@@ -1,8 +1,8 @@
 package repositories
 
 import (
-	"task_api/internal/entities"
 	"errors"
+	"task_api/internal/entities"
 
 	"gorm.io/gorm"
 )
@@ -17,6 +17,7 @@ type UserRepositoryInterface interface {
 	DeleteUser(id int) error
 	ExistsByEmail(email string) (bool, error)
 	ExistsByEmailAndIDNot(email string, id int) (bool, error)
+
 }
 
 type UserRepository struct {

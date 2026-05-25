@@ -10,7 +10,6 @@ func UserToEntity(req requestDTO.CreateUserRequest) entities.User {
 	return entities.User{
 		FullName:     req.FullName,
 		Email:        req.Email,
-		PasswordHash: req.Password,
 	}
 }
 
@@ -23,10 +22,6 @@ func ToUpdateUserEntity(req requestDTO.UpdateUserRequest) entities.User {
 
 	if req.Email != nil {
 		user.Email = *req.Email
-	}
-
-	if req.Password != nil {
-		user.PasswordHash = *req.Password
 	}
 
 	return user

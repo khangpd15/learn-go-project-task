@@ -1,18 +1,13 @@
 package services
 
 import (
-	"errors"
+
 	"task_api/internal/entities"
 	"task_api/internal/repositories"
 	"task_api/internal/validation"
 )
 
-var (
-	ErrInvalidProjectID      = errors.New("invalid project id")
-	ErrInvalidProjectOwnerId = errors.New("invalid project owner id")
-	ErrProjectNotFound       = errors.New("project not found")
-	ErrForbidden             = errors.New("forbidden")
-)
+
 
 type ProjectService struct {
 	projectRepository repositories.ProjectRepositoryInterface

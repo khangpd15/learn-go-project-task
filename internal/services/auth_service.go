@@ -2,12 +2,15 @@ package services
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"task_api/internal/dto/request/auth"
 	"task_api/internal/entities"
 	"task_api/internal/repositories"
 	"task_api/internal/utils"
 	"task_api/internal/validation"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -27,56 +30,72 @@ func NewAuthService(userRepo repositories.UserRepositoryInterface) *AuthService 
 }
 
 func (as *AuthService) Login(req auth.LoginRequest) (string, error) {
+	if strings.TrimSpace(req.Email) == "" || strings.TrimSpace(req.Password) == "" {
+		return "", ErrInvalidInput
+	}
+
 	user, err := as.userRepo.GetUserByEmail(req.Email)
 	if err != nil {
-		return "", errors.New("invalid email or password")
+		return "", ErrInvalidCredentials
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
 	if err != nil {
-		return "", errors.New("invalid email or password")
+		return "", ErrInvalidCredentials
 	}
 
 	token, err := utils.GenerateAccessToken(user.ID, user.Email)
 	if err != nil {
-		return "", errors.New("failed to generate access token")
+		return "", fmt.Errorf("generate access token: %w", err)
 	}
 
 	return token, nil
 }
 func (as *AuthService) Register(req auth.RegisterRequest) error {
 
-	if req.FullName == "" || req.Email == "" || req.Password == "" {
-		return errors.New("all fields are required")
+	if strings.TrimSpace(req.FullName) == "" || strings.TrimSpace(req.Email) == "" || strings.TrimSpace(req.Password) == "" {
+		return ErrInvalidInput
 	}
-	
+
 	if !validation.IsValidEmail(req.Email) {
-		return errors.New("invalid email format")
+		return ErrInvalidEmail
 	}
 	if !validation.IsValidPassword(req.Password) {
-		return errors.New("password must be at least 8 characters and contain at least one letter and one number and one special character")
+		return ErrInvalidPassword
 	}
 	exists, err := as.userRepo.ExistsByEmail(req.Email)
 	if err != nil {
-		return errors.New("failed to check email")
+		return err
 	}
 
 	if exists {
-		return errors.New("email already exists")
+		return ErrEmailAlreadyExists
 	}
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return errors.New("failed to hash password")
+		return err
 	}
 	newUser := entities.NewUser(
 		0,
-		req.FullName,
+		strings.TrimSpace(req.FullName),
 		string(hashedPassword),
-		req.Email,
+		strings.TrimSpace(req.Email),
 	)
 	_, err = as.userRepo.CreateUser(newUser)
 	if err != nil {
-		return errors.New("failed to create user")
+		if isUniqueEmailViolation(err) {
+			return ErrEmailAlreadyExists
+		}
+		return err
 	}
 	return nil
+}
+
+func isUniqueEmailViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		return true
+	}
+
+	return false
 }

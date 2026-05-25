@@ -4,10 +4,10 @@ import (
 	"net/http"
 	"strings"
 
-	"task_api/internal/repositories"
-	"task_api/internal/utils"
-
 	"github.com/gin-gonic/gin"
+	"task_api/internal/repositories"
+	"task_api/internal/response"
+	"task_api/internal/utils"
 )
 
 func AuthMiddleware(userRepo repositories.UserRepositoryInterface) gin.HandlerFunc {
@@ -15,9 +15,11 @@ func AuthMiddleware(userRepo repositories.UserRepositoryInterface) gin.HandlerFu
 		authHeader := c.GetHeader("Authorization")
 
 		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"message": "missing Authorization header",
-			})
+			c.JSON(http.StatusUnauthorized, response.ErrorResponse(
+				"missing Authorization header",
+				"authorization header is required",
+			),
+			)
 			c.Abort()
 			return
 		}
@@ -25,27 +27,33 @@ func AuthMiddleware(userRepo repositories.UserRepositoryInterface) gin.HandlerFu
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 
 		if tokenString == authHeader {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"message": "invalid Authorization format",
-			})
+			c.JSON(http.StatusUnauthorized, response.ErrorResponse(
+				"invalid Authorization format",
+				"Authorization header must be in the format 'Bearer <token>'",
+			),
+			)
 			c.Abort()
 			return
 		}
 
 		claims, err := utils.ValidateAccessToken(tokenString)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"message": "invalid or expired token",
-			})
+			c.JSON(http.StatusUnauthorized, response.ErrorResponse(
+				"invalid or expired token",
+				"token validation failed: "),
+			)
 			c.Abort()
 			return
 		}
 
 		userIDFloat, ok := claims["user_id"].(float64)
 		if !ok {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"message": "invalid token payload",
-			})
+			c.JSON(http.StatusUnauthorized,
+				response.ErrorResponse(
+					"Missing Authorization header",
+					"authorization header is required",
+				),
+			)
 			c.Abort()
 			return
 		}
@@ -54,9 +62,10 @@ func AuthMiddleware(userRepo repositories.UserRepositoryInterface) gin.HandlerFu
 
 		user, err := userRepo.GetUserByID(userID)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"message": "user not found",
-			})
+			c.JSON(http.StatusUnauthorized, response.ErrorResponse(
+				"user not found",
+				"the requested user was not found",
+			))
 			c.Abort()
 			return
 		}
