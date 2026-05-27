@@ -13,3 +13,7 @@ func IsValidId(id int) bool {
 
 	return id > 0
 }
+func IsValidIdAssignTask(id int) bool {
+
+	return id >= 0
+}

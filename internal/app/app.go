@@ -6,12 +6,14 @@ import (
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 
+	"task_api/internal/cache"
 	"task_api/internal/config"
 	"task_api/internal/database"
 	"task_api/internal/handler"
 	"task_api/internal/middleware"
+	"task_api/internal/queue"
+	"task_api/internal/realtime"
 	"task_api/internal/repositories"
-	"task_api/internal/cache"
 	"task_api/internal/routes"
 	"task_api/internal/services"
 )
@@ -24,7 +26,7 @@ func Run() {
 	redisCfg := config.NewRedisConfig()
 	redisClient := database.ConnectRedis(redisCfg)
 	defer redisClient.Close()
-
+	redisQueue := queue.NewRedisQueue(redisClient)
 	// Gin engine
 	r := gin.New()
 
@@ -38,7 +40,9 @@ func Run() {
 	userRepo := repositories.NewUserRepository(db)
 	projectRepo := repositories.NewProjectRepository(db)
 	taskRepo := repositories.NewTaskRepository(db)
-
+	hub := realtime.NewHub()
+	go hub.Run()
+	eventPublisher := realtime.NewPublisher(hub)
 	// Services
 	userService := services.NewUserService(userRepo)
 	authService := services.NewAuthService(userRepo)
@@ -46,27 +50,29 @@ func Run() {
 
 	// Create cache abstraction and pass to TaskService
 	cacheClient := cache.NewRedisCache(redisClient)
-	taskService := services.NewTaskService(taskRepo, projectRepo, userRepo, cacheClient)
+	taskService := services.NewTaskService(taskRepo, projectRepo, userRepo, cacheClient, redisQueue, eventPublisher)
 
 	// Handlers
 	userHandler := handler.NewUserHandler(userService)
 	authHandler := handler.NewAuthHandler(authService)
 	projectHandler := handler.NewProjectHandler(projectService)
 	taskHandler := handler.NewTaskHandler(taskService)
+	realtimeHandler := realtime.NewHandler(hub)
 
 	// Routes
 	routes.SetupRoutes(
-		r,
-		taskHandler,
-		userHandler,
-		authHandler,
-		userRepo,
-		projectHandler,
-	)
+	r,
+	taskHandler,
+	userHandler,
+	authHandler,
+	userRepo,
+	projectHandler,
+	realtimeHandler,
+)
 
 	// Run server
 	if err := r.Run(":8080"); err != nil {
 		log.Fatal(err)
 	}
-	
+
 }

@@ -12,6 +12,7 @@ func ToTaskResponse(taskEntity entities.Task) TaskResponse.TaskResponse {
 		Title:       taskEntity.Title,
 		Description: taskEntity.Description,
 		Status:      taskEntity.Status,
+		AssigneeID:  taskEntity.AssigneeID,
 	}
 }
 func TasksToResponses(taskEntities []entities.Task) []TaskResponse.TaskResponse {
@@ -45,7 +46,15 @@ func UpdateTaskRequestToTaskEntity(updateReq TaskRequest.UpdateTaskRequest) enti
 	if updateReq.Status != nil {
 		task.Status = *updateReq.Status
 	}
-
+	if updateReq.Assignee != nil {
+		task.AssigneeID = updateReq.Assignee
+	}
 	return task
 }
 
+func AssignedToEntity(assReq TaskRequest.AssignTaskRequest) entities.Task{
+   
+return entities.Task{
+	AssigneeID: &assReq.AssigneeID,
+}
+}

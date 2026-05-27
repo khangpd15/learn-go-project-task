@@ -8,16 +8,21 @@ import (
 	"task_api/internal/cache"
 	requestDTO "task_api/internal/dto/request/task"
 	"task_api/internal/entities"
+	"task_api/internal/events"
+	"task_api/internal/jobs"
+	"task_api/internal/queue"
 	"task_api/internal/repositories"
 	"task_api/internal/validation"
 	"time"
 )
 
 type TaskService struct {
-	taskRepo    repositories.TaskRepositoryInterface
-	projectRepo repositories.ProjectRepositoryInterface
-	userRepo    repositories.UserRepositoryInterface
-	cache       cache.Cache
+	taskRepo       repositories.TaskRepositoryInterface
+	projectRepo    repositories.ProjectRepositoryInterface
+	userRepo       repositories.UserRepositoryInterface
+	cache          cache.Cache
+	queue          queue.Queue
+	eventPublisher events.Publisher
 }
 
 func NewTaskService(
@@ -25,12 +30,16 @@ func NewTaskService(
 	projectRepo repositories.ProjectRepositoryInterface,
 	userRepo repositories.UserRepositoryInterface,
 	cacheClient cache.Cache,
+	queue queue.Queue,
+	eventPublisher events.Publisher,
 ) *TaskService {
 	return &TaskService{
-		taskRepo:    taskRepo,
-		projectRepo: projectRepo,
-		userRepo:    userRepo,
-		cache:       cacheClient,
+		taskRepo:       taskRepo,
+		projectRepo:    projectRepo,
+		userRepo:       userRepo,
+		cache:          cacheClient,
+		queue:          queue,
+		eventPublisher: eventPublisher,
 	}
 }
 
@@ -63,7 +72,6 @@ func (s *TaskService) GetAllTasks(currentUserID int, ctx context.Context) ([]ent
 			}
 		}
 	}
-	
 
 	return allTasks, nil
 }
@@ -123,7 +131,7 @@ func (s *TaskService) GetTaskById(currentUserID int, ctx context.Context, id int
 	return task, nil
 }
 
-func (s *TaskService) CreateTask(currentUserID int, task entities.Task) (entities.Task, error) {
+func (s *TaskService) CreateTask(currentUserID int, ctx context.Context, task entities.Task) (entities.Task, error) {
 	if !validation.IsValidId(task.ProjectID) {
 		return entities.Task{}, ErrInvalidProjectID
 	}
@@ -149,12 +157,26 @@ func (s *TaskService) CreateTask(currentUserID int, task entities.Task) (entitie
 		return entities.Task{}, err
 	}
 	// Invalidate caches related to tasks
-	ctx := context.Background()
-	_ = s.cache.Delete(ctx, cache.TaskKey(created.ID))
+	_ = s.cache.Delete(ctx, cache.TaskListByUserKey(currentUserID))
+	_ = s.eventPublisher.Publish(ctx, events.Event{
+		Type:      events.EventTaskCreated,
+		UserID:    currentUserID,
+		ProjectID: created.ProjectID,
+		TaskID:    created.ID,
+		Data: map[string]interface{}{
+			"id":          created.ID,
+			"project_id":  created.ProjectID,
+			"title":       created.Title,
+			"description": created.Description,
+			"status":      created.Status,
+			"assignee_id": created.AssigneeID,
+			"created_at":  created.CreatedAt,
+		},
+	})
 	return created, nil
 }
 
-func (s *TaskService) UpdateTask(id int, currentUserID int, req requestDTO.UpdateTaskRequest) (*entities.Task, error) {
+func (s *TaskService) UpdateTask(id int, currentUserID int, ctx context.Context, req requestDTO.UpdateTaskRequest) (*entities.Task, error) {
 	if !validation.IsValidId(id) {
 		return nil, ErrInvalidTaskID
 	}
@@ -173,14 +195,14 @@ func (s *TaskService) UpdateTask(id int, currentUserID int, req requestDTO.Updat
 		return nil, ErrForbidden
 	}
 
-	updateTask := entities.Task{}
+	updates := map[string]interface{}{}
 
 	if req.Title != nil {
-		updateTask.Title = *req.Title
+		updates["title"] = *req.Title
 	}
 
 	if req.Description != nil {
-		updateTask.Description = *req.Description
+		updates["description"] = *req.Description
 	}
 
 	if req.Status != nil {
@@ -188,21 +210,70 @@ func (s *TaskService) UpdateTask(id int, currentUserID int, req requestDTO.Updat
 		if !validation.IsValidStatus(status) {
 			return nil, ErrInvalidStatus
 		}
-		updateTask.Status = status
+		updates["status"] = status
 	}
 
-	updated, err := s.taskRepo.UpdateTask(id, updateTask)
+	assigneeChanged := false
+	var newAssigneeID int
+	if req.Assignee != nil {
+
+		if *req.Assignee == 0 {
+
+			updates["assignee_id"] = nil
+			log.Println("task dang chon lai nguoi lam")
+
+		} else {
+
+			if !validation.IsValidId(*req.Assignee) {
+				return nil, ErrInvalidAssigneeID
+			}
+
+			_, err := s.userRepo.GetUserByID(*req.Assignee)
+			if err != nil {
+				return nil, ErrUserNotFound
+			}
+
+			updates["assignee_id"] = *req.Assignee
+
+			assigneeChanged = true
+			newAssigneeID = *req.Assignee
+		}
+	}
+
+	updated, err := s.taskRepo.UpdateTask(id, updates)
 	if err != nil {
 		return nil, err
 	}
+
+	if assigneeChanged {
+		job := jobs.NotificationJob{
+			TaskID:     id,
+			AssigneeID: newAssigneeID,
+			Message:    "You have been assigned a new task",
+			RetryCount: 0,
+		}
+
+		payload, err := json.Marshal(job)
+		if err != nil {
+			log.Println("failed to marshal notification job:", err)
+		} else {
+			if err := s.queue.Enqueue(ctx, jobs.NotificationQueueName, payload); err != nil {
+				log.Println("failed to enqueue notification job:", err)
+			}
+		}
+	}
 	// Invalidate caches
-	ctx := context.Background()
+
 	_ = s.cache.Delete(ctx, cache.TaskKey(id))
+	_ = s.cache.Delete(ctx, cache.TaskListByUserKey(currentUserID))
+	if assigneeChanged {
+		_ = s.cache.Delete(ctx, cache.TaskListByUserKey(newAssigneeID))
+	}
 
 	return updated, nil
 }
 
-func (s *TaskService) DeleteTask(id int, currentUserID int) error {
+func (s *TaskService) DeleteTask(id int, currentUserID int, ctx context.Context) error {
 	if !validation.IsValidId(id) {
 		return ErrInvalidTaskID
 	}
@@ -226,7 +297,88 @@ func (s *TaskService) DeleteTask(id int, currentUserID int) error {
 		return err
 	}
 	// Invalidate cache
-	ctx := context.Background()
+
 	_ = s.cache.Delete(ctx, cache.TaskKey(id))
+	_ = s.cache.Delete(ctx, cache.TaskListByUserKey(currentUserID))
 	return nil
+}
+
+func (s *TaskService) AssignTask(id int, currentUserID int, assigneeID int, ctx context.Context) (*entities.Task, error) {
+	if !validation.IsValidId(id) {
+		return nil, ErrInvalidTaskID
+	}
+	if !validation.IsValidIdAssignTask(assigneeID) {
+		return nil, ErrInvalidAssigneeID
+	}
+	task, err := s.taskRepo.GetTaskById(id)
+	if err != nil {
+		return nil, ErrTaskNotFound
+	}
+	project, err := s.projectRepo.GetProjectByID(task.ProjectID)
+	if err != nil {
+		return nil, ErrProjectNotFound
+	}
+	if project.OwnerID != currentUserID {
+		return nil, ErrForbidden
+	}
+	user, err := s.userRepo.GetUserByID(assigneeID)
+	if err != nil {
+		return nil, ErrUserNotFound
+	}
+	println("Assigned task", id, "to user", user.ID)
+	task.AssigneeID = &assigneeID
+
+	assign, err := s.taskRepo.AssignTask(id, *task.AssigneeID)
+	if err != nil {
+		return nil, err
+	}
+	_ = s.cache.Delete(ctx, cache.TaskKey(id))
+	_ = s.cache.Delete(ctx, cache.TaskListByUserKey(currentUserID))
+	_ = s.cache.Delete(ctx, cache.TaskListByUserKey(assigneeID))
+
+	job := jobs.NotificationJob{
+		TaskID:     id,
+		AssigneeID: assigneeID,
+		Message:    "You have been assigned a new task",
+		RetryCount: 0,
+	}
+	payload, err := json.Marshal(job)
+	if err != nil {
+		log.Println("Failed to marshal job:", err)
+	} else {
+		if err := s.queue.Enqueue(ctx, jobs.NotificationQueueName, payload); err != nil {
+			log.Println("Failed to enqueue job:", err)
+		}
+	}
+
+	return assign, nil
+}
+func (s *TaskService) UnassignTask(ctx context.Context, taskID int, currentUserID int) (*entities.Task, error) {
+	if !validation.IsValidId(taskID) {
+		return nil, ErrInvalidTaskID
+	}
+
+	task, err := s.taskRepo.GetTaskById(taskID)
+	if err != nil {
+		return nil, ErrTaskNotFound
+	}
+
+	project, err := s.projectRepo.GetProjectByID(task.ProjectID)
+	if err != nil {
+		return nil, ErrProjectNotFound
+	}
+
+	if project.OwnerID != currentUserID {
+		return nil, ErrForbidden
+	}
+
+	updated, err := s.taskRepo.UnassignTask(taskID)
+	if err != nil {
+		return nil, err
+	}
+
+	_ = s.cache.Delete(ctx, cache.TaskKey(taskID))
+	_ = s.cache.Delete(ctx, cache.TaskListByUserKey(currentUserID))
+
+	return updated, nil
 }

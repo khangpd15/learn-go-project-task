@@ -8,11 +8,12 @@ type TaskRepositoryInterface interface {
 GetAllTasks() ([]entities.Task, error)
 GetTaskById(id int) (*entities.Task, error)
 CreateTask(task entities.Task) (entities.Task, error)
-UpdateTask(id int, updatedTask entities.Task) (*entities.Task, error)
+UpdateTask(id int, updates map[string]interface{}) (*entities.Task, error)
 DeleteTask(id int)  error
 GetTaskListByProjectID(projectID int) ([]entities.Task, error)
 GetAllTasksByUserID(userID int) ([]entities.Task, error)
-
+AssignTask(id int, assigneeID int) (*entities.Task, error)
+UnassignTask(id int) (*entities.Task, error)
 }
 
 type TaskRepository struct {
@@ -78,31 +79,63 @@ func (r *TaskRepository) CreateTask(task entities.Task) (entities.Task, error) {
 	return task, nil
 }
 
-func (r *TaskRepository) UpdateTask(id int, task entities.Task) (*entities.Task, error) {
-	var existingTask entities.Task
+func (r *TaskRepository) AssignTask(id int, assigneeID int) (*entities.Task, error) {
+	var task entities.Task
 
-	err := r.db.
-		First(&existingTask, id).
-		Error
+	if err := r.db.First(&task, id).Error; err != nil {
+		return nil, err
+	}
 
+	if err := r.db.Model(&task).Update("assignee_id", assigneeID).Error; err != nil {
+		return nil, err
+	}
+
+	if err := r.db.First(&task, id).Error; err != nil {
+		return nil, err
+	}
+
+	return &task, nil
+}
+
+func (r *TaskRepository) UnassignTask(id int) (*entities.Task, error) {
+	var task entities.Task
+
+	err := r.db.First(&task, id).Error
 	if err != nil {
 		return nil, err
 	}
 
-	existingTask.Title = task.Title
-	existingTask.Description = task.Description
-	existingTask.Status = task.Status
-	existingTask.AssigneeID = task.AssigneeID
+	task.AssigneeID = nil
 
-	err = r.db.
-		Save(&existingTask).
-		Error
-
+	err = r.db.Save(&task).Error
 	if err != nil {
 		return nil, err
 	}
 
-	return &existingTask, nil
+	return &task, nil
+}
+
+
+func (r *TaskRepository) UpdateTask(id int, updates map[string]interface{}) (*entities.Task, error) {
+	var task entities.Task
+
+	if err := r.db.First(&task, id).Error; err != nil {
+		return nil, err
+	}
+
+	if len(updates) == 0 {
+		return &task, nil
+	}
+
+	if err := r.db.Model(&task).Updates(updates).Error; err != nil {
+		return nil, err
+	}
+
+	if err := r.db.First(&task, id).Error; err != nil {
+		return nil, err
+	}
+
+	return &task, nil
 }
 func (r *TaskRepository) DeleteTask(id int) error {
 	err := r.db.

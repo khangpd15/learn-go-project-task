@@ -1,11 +1,11 @@
 package routes
 
 import (
+	"github.com/gin-gonic/gin"
 	"task_api/internal/handler"
 	"task_api/internal/middleware"
+	"task_api/internal/realtime"
 	"task_api/internal/repositories"
-
-	"github.com/gin-gonic/gin"
 )
 
 func SetupRoutes(
@@ -15,6 +15,7 @@ func SetupRoutes(
 	authHandler *handler.AuthHandler,
 	userRepo repositories.UserRepositoryInterface,
 	projectHandler *handler.ProjectHandler,
+	realtimeHandler *realtime.Handler,
 ) {
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
@@ -30,6 +31,8 @@ func SetupRoutes(
 	// Protected routes: cần token
 	protected := v1.Group("")
 	protected.Use(middleware.AuthMiddleware(userRepo))
+
+	protected.GET("/ws", realtimeHandler.Connect)
 
 	NewTaskRoutes(taskHandler).SetupTaskRoutes(protected)
 	NewUserRoutes(userHandler).SetupUserRoutes(protected)
