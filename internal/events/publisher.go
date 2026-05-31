@@ -20,5 +20,6 @@ func (p NoopPublisher) Publish(ctx context.Context, event Event) error {
 	}
 
 	log.Println("[EVENT PUBLISHED]", string(data))
+	log.Println("[PUBLISHER] send event to hub:", event.Type, "userID:", event.UserID)
 	return nil
 }

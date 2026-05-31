@@ -27,10 +27,10 @@ func CreateTaskRequestToTaskEntity(createReq TaskRequest.CreateTaskRequest) enti
 		ProjectID:   createReq.ProjectID,
 		Title:       createReq.Title,
 		Description: createReq.Description,
-		Status:      "TODO", // Default status for new tasks
-		AssigneeID: nil,
-		
+		Status:      "TODO", // Default status for new tasks	
+		AssigneeID: createReq.Assignee,
 	}
+	
 }
 func UpdateTaskRequestToTaskEntity(updateReq TaskRequest.UpdateTaskRequest) entities.Task {
 	task := entities.Task{}

@@ -7,11 +7,11 @@ import (
 )
 
 type Client struct {
-	hub  *Hub
-	conn *websocket.Conn
-	send chan []byte
+	hub    *Hub
+	conn   *websocket.Conn
+	send   chan []byte
+	UserID int
 }
-
 func (c *Client) ReadPump() {
 	defer func() {
 		c.hub.unregister <- c

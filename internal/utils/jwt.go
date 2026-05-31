@@ -15,7 +15,7 @@ func GenerateAccessToken(userID int, email string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"email":   email,
-		"exp":     time.Now().Add(4 * time.Minute).Unix(),
+		"exp":     time.Now().Add(30 * time.Minute).Unix(),
 		"iat":     time.Now().Unix(),
 	}
 

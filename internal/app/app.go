@@ -40,6 +40,7 @@ func Run() {
 	userRepo := repositories.NewUserRepository(db)
 	projectRepo := repositories.NewProjectRepository(db)
 	taskRepo := repositories.NewTaskRepository(db)
+	notificationRepo := repositories.NewNotificationRepository(db)
 	hub := realtime.NewHub()
 	go hub.Run()
 	eventPublisher := realtime.NewPublisher(hub)
@@ -47,10 +48,11 @@ func Run() {
 	userService := services.NewUserService(userRepo)
 	authService := services.NewAuthService(userRepo)
 	projectService := services.NewProjectService(projectRepo)
-
+    notificationService := services.NewNotificationService(notificationRepo)
 	// Create cache abstraction and pass to TaskService
 	cacheClient := cache.NewRedisCache(redisClient)
-	taskService := services.NewTaskService(taskRepo, projectRepo, userRepo, cacheClient, redisQueue, eventPublisher)
+	
+	taskService := services.NewTaskService(taskRepo, projectRepo, userRepo, cacheClient, redisQueue, eventPublisher, notificationService)
 
 	// Handlers
 	userHandler := handler.NewUserHandler(userService)

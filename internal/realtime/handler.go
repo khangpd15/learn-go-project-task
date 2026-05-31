@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"task_api/internal/utils"
 )
 
 type Handler struct {
@@ -22,6 +23,14 @@ var upgrader = websocket.Upgrader{
 }
 
 func (h *Handler) Connect(c *gin.Context) {
+	currentUserID, err := utils.CurrentUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "unauthorized",
+		})
+		return
+	}
+
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -31,9 +40,10 @@ func (h *Handler) Connect(c *gin.Context) {
 	}
 
 	client := &Client{
-		hub:  h.hub,
-		conn: conn,
-		send: make(chan []byte, 256),
+		hub:    h.hub,
+		conn:   conn,
+		send:   make(chan []byte, 256),
+		UserID: currentUserID,
 	}
 
 	h.hub.register <- client
